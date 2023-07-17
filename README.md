@@ -2,6 +2,11 @@
 
 This is a public repository for Identity Connect, that will contain docs, examples and source code for the SDKs.
 
+For SDK specific docs, please refer to the following links:
+
+- [Wallet SDK Docs](packages/wallet-sdk/DOCS.md)
+- [Dapp SDK Docs](packages/dapp-sdk/DOCS.md)
+
 This monorepo uses `turborepo`.
 
 ## Getting started
