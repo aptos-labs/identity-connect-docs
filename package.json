@@ -1,0 +1,37 @@
+{
+  "name": "identity-connect-docs",
+  "version": "0.0.0",
+  "private": true,
+  "workspaces": {
+    "packages": [
+      "examples/*",
+      "packages/*"
+    ]
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "lint:fix": "turbo run lint:fix",
+    "test": "turbo run test",
+    "format": "prettier --write \"**/*.{ts,tsx,md}\""
+  },
+  "devDependencies": {
+    "@identity-connect/eslint-config": "*",
+    "@identity-connect/eslint-plugin": "*",
+    "dotenv": "^16.0.3",
+    "eslint": "^8.21.0",
+    "prettier": "latest",
+    "syncpack": "^8.4.11",
+    "turbo": "latest",
+    "typescript": "5.0.4"
+  },
+  "engines": {
+    "npm": ">=7.0.0",
+    "node": ">=14.0.0"
+  },
+  "packageManager": "yarn@1.22.18",
+  "resolutions": {
+    "typescript": "5.0.4"
+  },
+  "prettier": "@identity-connect/prettier-config"
+}
