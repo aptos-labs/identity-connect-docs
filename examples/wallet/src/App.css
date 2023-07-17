@@ -1,0 +1,20 @@
+#root {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 2rem;
+  text-align: center;
+  flex-direction: row;
+}
+
+.layout {
+  display: flex;
+  flex-direction: row;
+  gap: 2em;
+}
+
+.card {
+  flex-grow: 1;
+  flex-shrink: 0;
+  padding: 2em;
+  box-shadow: rgba(149, 157, 165, 0.2) 0 8px 24px;
+}

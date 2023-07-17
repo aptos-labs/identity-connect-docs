@@ -1,0 +1,41 @@
+.header {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 1em;
+}
+
+.signing-requests-container {
+  min-width: 300px;
+  max-width: 500px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.signing-requests-body {
+  display: flex;
+  flex-grow: 1;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.signing-requests {
+  display: flex;
+  flex-grow: 1;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 1em;
+  width: 100%;
+  padding: 0;
+}
+
+.signing-request {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1em;
+  background-color: #fafafa20;
+}

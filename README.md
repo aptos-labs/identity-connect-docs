@@ -10,6 +10,11 @@ This monorepo uses `turborepo`.
 2. Clone the repo
 3. run `yarn install` from the root directory
 
+## Examples
+
+Under the `/examples` folder you can find an example wallet and an example dapp, to use as reference
+for adopting the IC SDK in your application.
+
 ## Packages
 
 - `eslint-config`: `eslint` configurations
