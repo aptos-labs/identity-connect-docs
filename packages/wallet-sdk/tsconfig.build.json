@@ -1,0 +1,34 @@
+{
+  "extends": "../tsconfig/base.json",
+  "compilerOptions": {
+    "lib": [
+      "es2021",
+      // Should probably remove this
+      "dom",
+    ],
+    "types": [
+      "node",
+    ],
+    "rootDir": "src",
+    "outDir": "dist",
+    "composite": true,
+    "sourceMap": true,
+    "declaration": true,
+    "declarationMap": true,
+    "noEmit": false
+  },
+  "references": [
+    {
+      "path": "../api/tsconfig.build.json"
+    },
+    {
+      "path": "../crypto/tsconfig.build.json"
+    }
+  ],
+  "include": [
+    "src"
+  ],
+  "exclude": [
+    "src/__tests__"
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "extends": "../tsconfig/base.json",
+  "compilerOptions": {
+    "types": [
+      "jest",
+      "node"
+    ],
+    "noEmit": true
+  },
+  "references": [
+    {
+      "path": "./tsconfig.build.json"
+    }
+  ],
+  "include": [
+    "src/__tests__",
+    ".eslintrc.cjs",
+    "jest.config.ts"
+  ]
+}

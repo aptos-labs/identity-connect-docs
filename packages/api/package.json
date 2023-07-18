@@ -1,0 +1,22 @@
+{
+  "name": "@identity-connect/api",
+  "version": "0.0.1",
+  "license": "MIT",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -b tsconfig.build.json",
+    "clean": "tsc -b tsconfig.build.json --clean",
+    "lint": "prettier --check src",
+    "lint:fix": "prettier --write src && eslint --cache ./src --fix"
+  },
+  "dependencies": {
+    "@identity-connect/crypto": "*",
+    "aptos": "^1.8.5"
+  },
+  "devDependencies": {
+    "axios-mock-adapter": "^1.21.4",
+    "ts-node": "10.9.1",
+    "typescript": "5.0.4"
+  }
+}
