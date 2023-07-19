@@ -52,7 +52,7 @@ export default function makeLocalStorageAppStateContext<TState>(storageKeyPrefix
         return () => {
           changeCallbacks.current.delete(onStateChange);
         };
-      }, [key]);
+      });
 
       return value;
       /* eslint-enable react-hooks/rules-of-hooks */

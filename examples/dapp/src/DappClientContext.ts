@@ -6,6 +6,7 @@ import { useMemo } from 'react';
 import { useAppState } from './AppStateContext.ts';
 import makeContext from './utils/makeContext.tsx';
 
+const STAGING_BASE_URL = 'https://identity-connect.staging.gcp.aptosdev.com';
 const { VITE_DAPP_ID } = import.meta.env;
 
 export const [DappClientContextProvider, useDappClient] = makeContext<ICDappClient>('DappClientContext', () => {
@@ -29,6 +30,10 @@ export const [DappClientContextProvider, useDappClient] = makeContext<ICDappClie
       },
     };
 
-    return new ICDappClient(VITE_DAPP_ID, { accessors });
+    return new ICDappClient(VITE_DAPP_ID, {
+      accessors,
+      frontendBaseURL: STAGING_BASE_URL,
+      axiosConfig: { baseURL: STAGING_BASE_URL },
+    });
   }, [appState]);
 });

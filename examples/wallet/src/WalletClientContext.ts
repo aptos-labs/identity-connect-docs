@@ -6,6 +6,8 @@ import { useMemo } from 'react';
 import { useAppState } from './AppStateContext.ts';
 import makeContext from './utils/makeContext.tsx';
 
+const STAGING_BASE_URL = 'https://identity-connect.staging.gcp.aptosdev.com';
+
 const walletInfo: WalletInfo = {
   deviceIdentifier: 'example-wallet',
   platform: 'chrome-extension',
@@ -34,6 +36,6 @@ export const [WalletClientContextProvider, useWalletClient] = makeContext<ICWall
       },
     };
 
-    return new ICWalletClient(walletInfo, { accessors });
+    return new ICWalletClient(walletInfo, { accessors, axiosConfig: { baseURL: STAGING_BASE_URL } });
   }, [appState]);
 });

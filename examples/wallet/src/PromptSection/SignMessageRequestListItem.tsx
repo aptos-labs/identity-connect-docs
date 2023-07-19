@@ -28,18 +28,19 @@ export default function SignMessageRequestListItem({ onRespond, request }: Reque
     const signCallback = makeEd25519SecretKeySignCallback(accountEd25519SecretKey);
 
     if (action === 'approve') {
+      const nonce = Date.now().toString();
       // TODO: derive from SigningRequest
       const application = 'Dapp example';
       // TODO: derive from network
       const chainId = 1;
       const prefix = 'ExampleWallet::';
-      const { message, nonce } = request.body;
+      const { message } = request.body;
 
       const fullMessageParts = [
         request.body.address ? request.accountAddress : undefined,
         request.body.chainId ? chainId : undefined,
         request.body.application ? application : undefined,
-        nonce,
+        request.body.nonce ? nonce : undefined,
         prefix,
         message,
       ];
@@ -51,8 +52,8 @@ export default function SignMessageRequestListItem({ onRespond, request }: Reque
       const signature = Buffer.from(signatureBytes).toString('hex');
       await walletClient.approveSigningRequest(request.id, request.pairingId, {
         address: request.accountAddress,
-        application,
-        chainId,
+        application: 'dapp example',
+        chainId: 1,
         fullMessage,
         message,
         nonce,

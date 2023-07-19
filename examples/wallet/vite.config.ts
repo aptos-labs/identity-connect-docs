@@ -6,5 +6,22 @@ import react from '@vitejs/plugin-react-swc';
 
 // https://vitejs.dev/config/
 export default defineConfig({
+  build: {
+    commonjsOptions: {
+      include: [
+        /packages\/api/,
+        /packages\/crypto/,
+        /packages\/wallet-sdk/,
+        /node_modules/,
+      ],
+    },
+  },
+  optimizeDeps: {
+    include: [
+      '@identity-connect/api',
+      '@identity-connect/crypto',
+      '@identity-connect/wallet-sdk',
+    ],
+  },
   plugins: [react()],
 });
