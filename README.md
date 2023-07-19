@@ -76,3 +76,7 @@ graph TD
 - **Account:** an account refers to a specific address on-chain with a corresponding key pair. Wallets contain one or more accounts. If an account does not have an on-chain presence yet, the address derived from a keypair’s public key is the account address. IC abstracts around wallets, so a signing notification for an account will be delivered to all devices on which the account exists. Multi-sig accounts are not currently supported.
 - **************Pairing**************: a secured channel between a dApp and an account (contained within a wallet). Creating one of these requires user interaction/approval.
 - **Ephemeral Keys:** this system has two types of keys: **account keys**, which are used to sign transactions and **ephemeral keys**. Account keys control access to a user's account on-chain, so losing them means losing access to all assets. This key is kept secure within a user’s wallet. Ephemeral keys are named such because recovering from their loss involves a mild UX flow, and there is no other impact on the user. The easiest way to think of these is like a session in the web2 sense- they are ephemeral in the same way a cookie is: whether the cookie lasts for a day, a month, or is refreshed on a rolling basis, ultimately “losing” a cookie only requires “logging in” again.
+
+## Other Technical Details
+To read more about keys, go to [Keys](IC_keys.md)
+  
