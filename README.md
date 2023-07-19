@@ -6,7 +6,9 @@ For SDK specific docs, please refer to the following links:
 
 - [Wallet SDK Docs](packages/wallet-sdk/DOCS.md)
 - [Dapp SDK Docs](packages/dapp-sdk/DOCS.md)
-  
+
+[See staging here](https://identity-connect.staging.gcp.aptosdev.com/)  
+
 This monorepo uses `turborepo`.
 
 ## Getting started
