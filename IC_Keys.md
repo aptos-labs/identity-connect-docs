@@ -1,4 +1,14 @@
-# Keys
+# Technical Design
+
+## Terminology
+
+- **SecuredEnvelope**: an envelope around RESTful JSON POST/PUT requests which provides a secure and authenticated channel for parties while allowing IC to route messages appropriately.
+- ****************Wallet:**************** a wallet controls/manages private keys, and can use them to sign messages or transactions. This could be self-custodial, full-custodial, or any combination therein. Wallets are specific to a device: i.e linking a Petra extension wallet on two different machines is two different wallets.
+- **Account:** an account refers to a specific address on-chain with a corresponding key pair. Wallets contain one or more accounts. If an account does not have an on-chain presence yet, the address derived from a keypair’s public key is the account address. IC abstracts around wallets, so a signing notification for an account will be delivered to all devices on which the account exists. Multi-sig accounts are not currently supported.
+- **************Pairing**************: a secured channel between a dApp and an account (contained within a wallet). Creating one of these requires user interaction/approval.
+- **Ephemeral Keys:** this system has two types of keys: **account keys**, which are used to sign transactions and **ephemeral keys**. Account keys control access to a user's account on-chain, so losing them means losing access to all assets. This key is kept secure within a user’s wallet. Ephemeral keys are named such because recovering from their loss involves a mild UX flow, and there is no other impact on the user. The easiest way to think of these is like a session in the web2 sense- they are ephemeral in the same way a cookie is: whether the cookie lasts for a day, a month, or is refreshed on a rolling basis, ultimately “losing” a cookie only requires “logging in” again.
+
+## Keys
 
 Several key pairs participate in message passing, transaction signing, account connecting, etc. Here we will enumerate them, and their acronyms.
 
@@ -25,3 +35,322 @@ Despite having so many key pairs, they are only used in three ways.
     1. The dApp creates a keypair $(pk_D, sk_D)$ for each pairing
     2. The wallet generates a keypair $(pk_W, sk_W)$ and submits the public key $pk_W$ to IC when confirming the connection
     3. This message contains a signed `AccountConnectInfoSerialized`, which proves the wallet controls the $sk_A$ associated with this pairing
+
+## Entity Model
+
+![Untitled (5).png](https://s3-us-west-2.amazonaws.com/secure.notion-static.com/91e7de12-c327-4c48-a05b-e11d9cac4594/Untitled_(5).png)
+
+### Users & dApps
+
+To allow for an Oauth flow, `User`s can log in with an Oauth Provider, with the linkage stored in the `OAuthAuthorization` table.
+
+A user may register a dApp, if they are a developer, which creates a new `RegisteredDapp` row. The backend will enforce the hostname for any dApp that sends `SigningRequests` to match the one registered. During dApp registration Identity-Connect (IC) verifies the user registering the dApp controls the domain.
+
+### Wallets, Pairings, and Transactions
+
+There are two ways that a wallet may be added:
+
+1. Anonymous Flow: this creates a pairing with an `anonymousWalletId`. The anonymous flow requires creating a `Wallet` so that notifications may be sent for anonymous wallets, and the wallet has a way to delete this pairing, resulting in a better UX. Deleting these if they haven’t been used in 30 days is recommended. Anonymous wallet connections are 1:1 with the pairings they are part of. The user approves an anonymous pairing in their wallet.
+2. Oauth Flow: This is a stateful wallet connection in which a user can log into Identity Connect (IC) and see all wallets they have connected, which account addresses they’ve chosen to connect, and all the pairings for those accounts. Connecting a wallet creates a secured and authenticated channel between the wallet and IC over which the wallet may freely add or remove accounts from IC. A connected wallet can have one or more pairings. A user approves a connected pairing from an IC modal/dashboard.
+
+While the anonymous flow requires scanning a QR code each time, the OAuth flow only requires scanning a QR code once, when connecting the wallet to IC.
+
+Once a pairing is created, the dApp can submit one or more `signingRequest`s - these mirror the API/payloads of the wallet adapter for ease of implementation.
+
+# Endpoints
+
+There are several endpoints that we expect wallets, dApps, or the IC frontend to call. They are enumerated below.
+
+Oauth endpoints are purposely excluded from here, as they’re standard, and an internal implementation detail.
+
+## Payload Types
+
+### SecuredEnvelope
+
+When sending messages back and forth, there are some things that Identity Connect must know to function and provide security for users, and dApps and wallets need to know that any messages sent to one another were sent (and received) by the expected parties.
+
+To allow for secure communication between parties, we are introducing the ********************SecuredEnvelope********************. This envelope provides a secure channel for parties to encrypt private messages, ***and*** authenticate one another, while allowing IC to route requests and block invalid messages.
+
+The envelope can be thought of as a wrapper around the JSON payload of a POST/PUT request `T`, and has two parts:
+
+1. `privateMessage`: this contains some of the parameters of `T`, which will be signed by the sender and encrypted with the recipient's public key.
+2. `publicMessage`: This field is sent unencrypted, but signed so that the IC endpoint can do basic validation before processing. The parameters in `publicMessage` are DISJOINT from `privateMessage`, and are invalid otherwise: there are no keys in `privateMessage` that also appear in `publicMessage`. It must contain a ``_metadata`` field with security features like the timestamp, public keys, sequence number, etc.
+
+We use `Public` and `Private` as generic types instead of `privateMessage` and `publicMessage`, so we get `T = Public & Private`. We also have the following constraints:
+
+```tsx
+Public extends Message & { [K in keyof Private]?: never }
+Private extends Message & { [K in keyof Public]?: never }
+```
+
+A message- whether the `Public` or `Private` component- is a JSON object, and as such, we know that the keys are strings, and the values are any JSON-serializable type. In typescript, we represent this type as `type Message = Record<string, unknown>`.
+
+```tsx
+type SecuredEnvelope<Public extends Message> = {
+  encryptedPrivateMessage: SerializedEncryptionResult;
+  messageSignature: string;
+  publicMessage: Public & {_metadata: EnvelopeMetadata};
+}
+```
+
+Both IC and dApps can verify, on chain, that the senders’ keys match their address and that they are speaking with who they expect. Encryption is done with an X25519 key derived from the ED25519 PublicKey of the wallet account that is connecting (this allows for seamless cross-device account access), and an ephemeral X25519 KeyPair, of which the SecretKey is thrown away after encryption. Decryption uses the X25519 key derived from the receiver ED25519 SecretKey.
+
+The `publicMessage._metadata` field looks like this:
+
+```tsx
+type EnvelopeMetadata = {
+	// The receiver's public key, base64
+  receiverEd25519PublicKeyB64: string;
+	// The sender public key, base64
+  senderEd25519PublicKeyB64: string;
+	// The senders X25519 public key, base64
+  senderX25519PublicKeyB64: string;
+	// The sequence of the sender.
+	// This number only goes up, to prevent relay attacks
+	// This exists per pairing
+	// dApps, wallets, accounts, etc are expected to keep track of them
+	// IC will reject out-of-order sequence numbers
+  sequence: number;
+	// The timestamp this message was sent at
+	// IC will reject if it's in the future or older than 5 minutes
+  timestampMillis: number;
+}
+```
+
+To send a `SecuredEnvelope` over the wire, it must first be turned into a `SecuredEnvelopeTransport` - this involves: 
+
+1. Encrypting and serializing the `privateMessage` field to an `encryptedPrivateMessage`field.
+    1. Generate ephemeral X25519 sender keypair `xPkse/xSkse`. The `xPkse` becomes the `senderX25519PublicKeyB64` in the `EnvelopeMetadata`.
+    2. Convert the `receiverEd25519PublicKey` to a `receiverX25519PublicKey` - `xPkr`
+    3. Generate a random `nonce` for the `[nacl.box](http://nacl.box)` encryption
+    4. Encrypt the `privateMessage` using `[nacl.box](http://nacl.box)` with the `xSkse` and `xPkr`
+    5. Package this encrypted data, and the `nonce`, into a `SerializedEncryptionResult`
+        
+        ```tsx
+        type SerializedEncryptionResult = {
+          nonceB64: string;
+          securedB64: string;
+        }
+        ```
+        
+2. JSON serializing the `publicMessage` field into a `serializedPublicMessage`. We don’t care about canonical serialization/ordering as the sender signs over this serialized string. 
+3.  Now that we have the private `encryptedPrivateMessage` and public `serializedPublicMessage` we can generate the `messageSignature`:
+    1. Hash the `SHA3-256(encryptedPublicMessage)` to get `publicMessageHash`
+    2. Hash the `SHA3-256(encryptedPrivateMessage)` to get `privateMessageHash`
+    3. Hash `SHA3-256(publicMessageHash | privateMessageHash)` to get `combinedMessageHash`
+    4. Get the `domainSeparatedMessageHash` by hashing the `combinedMessageHash` with a domain separator: `SHA3-256(SHA3-256('APTOS::IDENTITY_CONNECT::') | combinedMessageHash)`  
+    5. To obtain the final `messageSignature`, we sign the `domainSeparatedMessageHash` with the Ed25519 private key of the sender, and hex encode it.
+4. This creates the final `SecuredEnvelopeTransport` object, ready to be JSON serialized and sent in an HTTP request:
+
+```tsx
+type SecuredEnvelopeTransport = {
+  encryptedPrivateMessage: SerializedEncryptionResult;
+  messageSignature: string;
+  serializedPublicMessage: string;
+}
+```
+
+### AccountConnectInfoSerialized
+
+When a wallet wants to create a pairing, or add/remove an account from a wallet connection, it must prove that it has the secret key for a given account. To do so it uses an `AccountConnectInfo`: 
+
+```tsx
+type AccountConnectInfo = {
+	// The account address
+  accountAddress: string;
+	// either 'add' or 'remove'
+  action: AccountConnectionAction;
+	// The account public key, base64
+  ed25519PublicKeyB64: string;
+	// A unique identifier for this connection: it is either the walletId or the pairingId
+	// Prevents replay attacks across wallets
+  intentId: string;
+	// Prevents replay attacks across time- these are only valid for 5 minutes
+  timestampMillis: number;
+}
+```
+
+Once the `AccountConnectInfo` is assembled, it’s JSON serialized to get a `accountInfoSerialized` string.
+
+We then domain separate and hash the `accountInfoSerialized` - `SHA3-256(SHA3-256('APTOS::IDENTITY_CONNECT::') | SHA3-256(accountInfoSerialized))`, giving us the `accountInfoHash`.
+
+To obtain the `signature`, we sign the `accountInfoHash` with the Ed25519 private key of the sender, and hex encode it.
+
+These are assembled into an `AccountConnectInfoSerialized`, ready to be sent in an HTTP request.
+
+```tsx
+type AccountConnectInfoSerialized = {
+  accountInfoSerialized: string;
+  signature: string;
+}
+```
+
+## External Endpoints
+
+### Pairings
+
+**********Create Pairing**********
+
+POST `/v1/pairing`
+
+Requires SecuredEnvelope: no ❌
+
+body:
+
+```tsx
+{
+  dappEd25519PublicKeyB64: string;
+  dappId: string;
+}
+```
+
+****************Get Pairing****************
+
+GET `/v1/pairing/:pairingId`
+
+Requires SecuredEnvelope: no ❌
+
+**************************************Finalize Anonymous Pairing**************************************
+
+PATCH `/v1/pairing/:pairingId/anonymous-wallet`
+
+Requires SecuredEnvelope: yes ✅ `S/Pkw -> S/Pkd`
+
+SecuredEnvelope Public:
+
+```tsx
+{
+	accounts: AccountConnectInfoSerialized[];
+  // Device identifier of wallet device
+  deviceIdentifier: string;
+  // Platform of wallet
+  platform: string;
+  // Operating system of wallet
+  platformOS: string;
+  // Optional alias for this wallet
+  userSubmittedAlias?: string;
+  // wallet public key (Pkw)
+  walletEd25519PublicKeyB64: string;
+  // Ex: 'petra', 'martian', etc
+  walletName: string;
+}
+```
+
+******************************************************************Get Signing Requests for Pairing******************************************************************
+
+GET `/v1/pairing/:pairingId/signing-requests`
+
+Requires SecuredEnvelope: no ❌
+
+**********************Create Signing Request for Pairing**********************
+
+POST `/v1/pairing/:pairingId/signing-request`
+
+Requires SecuredEnvelope: yes ✅ `S/Pkd -> S/Pka`
+
+SecuredEnvelope Public:
+
+```tsx
+{
+	// SIGN_AND_SUBMIT_TRANSACTION, SIGN_TRANSACTION, SIGN_MESSAGE
+  requestType: SigningRequestTypes
+}
+```
+
+### Signing Requests
+
+****************************************************Get Signing Request****************************************************
+
+GET `/v1/signing-request/:signingRequestId`
+
+Requires SecuredEnvelope: no ❌
+
+****************************************************Respond to Signing Request****************************************************
+
+PATCH `/v1/signing-request/:signingRequestId/:action`
+
+Requires SecuredEnvelope: yes ✅ `S/Pka -> S/Pkd`
+
+`:action` is `approve`, `invalid`, or `reject`
+
+SecuredEnvelope Public:
+
+```tsx
+{
+  action: Action;
+  signingRequestId: string;
+}
+```
+
+********************************************Cancel Signing Request********************************************
+
+PATCH `/v1/signing-request/:signingRequestId/cancel`
+
+Requires SecuredEnvelope: yes ✅ `S/Pkd -> S/Pka`
+
+SecuredEnvelope Public:
+
+```tsx
+{
+  action: Action;
+  signingRequestId: string;
+}
+```
+
+### Wallets
+
+**********************Get Wallet**********************
+
+GET `/v1/wallet/:walletId`
+
+Requires SecuredEnvelope: no ❌
+
+**Get Pending Signing Requests**
+
+POST `/v1/wallet/:walletId/pending-signing-requests`
+
+Requires SecuredEnvelope: yes ✅ `S/Pkw -> S/Pkic`
+
+SecuredEnvelope Public: `{}`
+
+**********************Update Wallet Account List**********************
+
+PATCH `/v1/wallet/:walletId/accounts`
+
+Requires SecuredEnvelope: yes ✅ `S/Pkw -> S/Pkic`
+
+SecuredEnvelope Public:
+
+```tsx
+{
+  accounts: [AccountConnectInfoSerialized](https://www.notion.so/Identity-Connect-Design-Doc-a8d841e3eb9e4f7b8be4a8e3fe8c5516?pvs=21)[];
+}
+```
+
+🚧🚧🚧🚧🚧            below is under construction      🚧🚧🚧🚧🚧
+
+## Internal Endpoints
+
+### Dapps
+
+**********************Create Dapp**********************
+
+POST `/v1/dapp`
+
+****************Get Dapp****************
+
+GET `/v1/dapp/:dappId`
+
+**********************Update Dapp**********************
+
+PATCH `/dapp/:dappId`
+
+**********************Verify Dapp**********************
+
+PATCH `/dapp/:dappId/verify`
+
+### Pairings
+
+****************************************************Finalize Connected Pairing****************************************************
+
+PATCH `/v1/pairing/:pairingId/finalize`
