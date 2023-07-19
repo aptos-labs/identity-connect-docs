@@ -38,7 +38,7 @@ Despite having so many key pairs, they are only used in three ways.
 
 ## Entity Model
 
-![Untitled (5).png](https://s3-us-west-2.amazonaws.com/secure.notion-static.com/91e7de12-c327-4c48-a05b-e11d9cac4594/Untitled_(5).png)
+![IC Entity Model](https://github.com/aptos-labs/identity-connect-docs/assets/52825010/15939590-f156-4228-8235-dedad6aaec49)
 
 ### Users & dApps
 
