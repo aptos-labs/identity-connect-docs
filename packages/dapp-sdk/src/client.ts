@@ -45,24 +45,24 @@ async function waitFor(milliseconds: number) {
 export interface ICDappClientConfig {
   accessors?: DappStateAccessors;
   axiosConfig?: CreateAxiosDefaults;
-  frontedBaseURL?: string;
+  frontendBaseURL?: string;
 }
 
 export default class ICDappClient {
   private readonly accessors: DappStateAccessors;
   private readonly axiosInstance: AxiosInstance;
-  private readonly frontedBaseURL: string;
+  private readonly frontendBaseURL: string;
 
   constructor(
     private readonly dappId: string,
-    { accessors = windowStateAccessors, axiosConfig, frontedBaseURL = DEFAULT_FRONTEND_URL }: ICDappClientConfig = {},
+    { accessors = windowStateAccessors, axiosConfig, frontendBaseURL = DEFAULT_FRONTEND_URL }: ICDappClientConfig = {},
   ) {
     this.accessors = accessors;
     this.axiosInstance = axios.create({
       baseURL: DEFAULT_BACKEND_URL,
       ...axiosConfig,
     });
-    this.frontedBaseURL = frontedBaseURL;
+    this.frontendBaseURL = frontendBaseURL;
   }
 
   private async createPairingRequest(dappEd25519PublicKeyB64: string) {
@@ -182,7 +182,7 @@ export default class ICDappClient {
     const dappEd25519PublicKeyB64 = Buffer.from(publicKey.key).toString('base64');
 
     const { id: pairingId } = await this.createPairingRequest(dappEd25519PublicKeyB64);
-    const promptWindow = await openPrompt(`${this.frontedBaseURL}/pairing/${pairingId}`);
+    const promptWindow = await openPrompt(`${this.frontendBaseURL}/pairing/${pairingId}`);
     const finalizedPairing = await waitForPromptResponse<FinalizedPairingData>(promptWindow);
 
     if (finalizedPairing === undefined) {
