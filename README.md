@@ -29,7 +29,7 @@ for adopting the IC SDK in your application.
 
 ## Why Identity Connect?
 
-In Web2, platforms like Google and Steam help connect users and their identities to their applications. Web3 traditionally has avoided identity management services and empowers users to own their identity via decentralized identity platforms such as self-custodial wallets and other identity management platforms. As a user interacts with an application on one device, their identity may be managed on another. This inherently creates a challenge for enabling seamless identity integration within an application. To address this, we propose ************************************Identity Connect*******************,***************** to be used as a platform, and protocol for coordinating across identity services and applications.
+In Web2, platforms like Google and Steam help connect users and their identities to their applications. Web3 traditionally has avoided identity management services and empowers users to own their identity via decentralized identity platforms such as self-custodial wallets and other identity management platforms. As a user interacts with an application on one device, their identity may be managed on another. This inherently creates a challenge for enabling seamless identity integration within an application. To address this, we created ************************************Identity Connect*******************,***************** to be used as a platform, and protocol for coordinating across identity services and applications.
 
 **Identity Connect has the following properties**:
 
@@ -37,7 +37,9 @@ In Web2, platforms like Google and Steam help connect users and their identities
 - A platform for managing persistent connections across applications and identity services, e.g., wallets and custodial solutions.
 - Leverage existing identity solutions, such as OAuth, for coordination across user interfaces. This allows users to login from the application, identity services, or a dedicated front-end to establish and manage connections.
 
-## Overview
+The main difference between Identity Connect and [Aptos Wallet Adapter](https://aptos.dev/integration/wallet-adapter-concept/) is that IC allows cross-platform transaction signing (i.e. play a game on desktop app, but sign on mobile app), while wallet adapter requires same environment to enable signing. However, IC is now also integrated with Wallet Adapter, which helps to circumvent this issue. In other words, you can access IC (and it's associated advantages through Wallet Adapter.
+
+## How does Identity Connect work?
 
 Identity Connect is a stateful service allowing asynchronous communication between dApps (desktop, mobile, browser) and wallets (custody, mobile, chrome extensions). Having a permanent stateful server as the relay between dApp and wallet allows Identity Connect to avoid any pitfalls of dropping requests and allows us to extend this to not only self-custody wallets but even identity brokering (’login with IC’), MPC, and custody services in the future.
 
