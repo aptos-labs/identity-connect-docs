@@ -19,3 +19,11 @@ export class UnexpectedSignResponseError extends Error {
     Object.setPrototypeOf(this, UnexpectedSignResponseError.prototype);
   }
 }
+
+export class PairingExpiredError extends Error {
+  constructor() {
+    super();
+    this.name = 'PairingExpiredError';
+    Object.setPrototypeOf(this, PairingExpiredError.prototype);
+  }
+}

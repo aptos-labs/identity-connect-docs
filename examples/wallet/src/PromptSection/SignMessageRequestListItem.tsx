@@ -1,8 +1,14 @@
 // Copyright © Aptos
 // SPDX-License-Identifier: Apache-2.0
 
-import { KeyTypes, makeEd25519SecretKeySignCallback, toKey } from '@identity-connect/crypto';
+import {
+  decodeBase64,
+  KeyTypes,
+  makeEd25519SecretKeySignCallbackNoDomainSeparation,
+  toKey,
+} from '@identity-connect/crypto';
 import { SignMessageRequest } from '@identity-connect/wallet-sdk';
+import { HexString } from 'aptos';
 import { useAppState } from '../AppStateContext.ts';
 import useAsyncAction from '../utils/useAsyncAction.ts';
 import { useWalletClient } from '../WalletClientContext.ts';
@@ -24,8 +30,8 @@ export default function SignMessageRequestListItem({ onRespond, request }: Reque
       throw new Error('Account not available in wallet');
     }
 
-    const accountEd25519SecretKey = toKey(Buffer.from(account.secretKeyB64, 'base64'), KeyTypes.Ed25519SecretKey);
-    const signCallback = makeEd25519SecretKeySignCallback(accountEd25519SecretKey);
+    const accountEd25519SecretKey = toKey(decodeBase64(account.secretKeyB64), KeyTypes.Ed25519SecretKey);
+    const signCallback = makeEd25519SecretKeySignCallbackNoDomainSeparation(accountEd25519SecretKey);
 
     if (action === 'approve') {
       const nonce = Date.now().toString();
@@ -49,7 +55,7 @@ export default function SignMessageRequestListItem({ onRespond, request }: Reque
       const fullMessageBytes = new TextEncoder().encode(fullMessage);
 
       const signatureBytes = await signCallback(fullMessageBytes);
-      const signature = Buffer.from(signatureBytes).toString('hex');
+      const signatureHex = HexString.fromUint8Array(signatureBytes);
       await walletClient.approveSigningRequest(request.id, request.pairingId, {
         address: request.accountAddress,
         application: 'dapp example',
@@ -58,7 +64,7 @@ export default function SignMessageRequestListItem({ onRespond, request }: Reque
         message,
         nonce,
         prefix,
-        signature,
+        signature: signatureHex.toString(),
       });
     } else {
       await walletClient.rejectSigningRequest(request.id, request.pairingId);

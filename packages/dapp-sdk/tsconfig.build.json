@@ -3,27 +3,14 @@
   "compilerOptions": {
     "lib": [
       "es2021",
-      "dom",
+      "dom"
     ],
     "types": [
-      "node",
+      "node"
     ],
     "rootDir": "src",
-    "outDir": "dist",
-    "composite": true,
-    "sourceMap": true,
-    "declaration": true,
-    "declarationMap": true,
-    "noEmit": false
+    "outDir": "dist"
   },
-  "references": [
-    {
-      "path": "../api/tsconfig.build.json"
-    },
-    {
-      "path": "../crypto/tsconfig.build.json"
-    }
-  ],
   "include": [
     "src"
   ],

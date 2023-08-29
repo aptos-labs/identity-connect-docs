@@ -7,6 +7,7 @@ import {
   createSerializedAccountInfo,
   deriveAccountTransportEd25519Keypair,
   Ed25519PublicKey,
+  encodeBase64,
   SignCallback,
 } from '@identity-connect/crypto';
 import { WalletAccountConnectInfo } from './types';
@@ -15,7 +16,7 @@ export function walletAccountFromConnectInfo({ info, transportEd25519SecretKey }
   const { accountAddress, action, ed25519PublicKeyB64, transportEd25519PublicKeyB64 } = JSON.parse(
     info.accountInfoSerialized,
   ) as AccountConnectInfo;
-  const transportEd25519SecretKeyB64 = Buffer.from(transportEd25519SecretKey.key).toString('base64');
+  const transportEd25519SecretKeyB64 = encodeBase64(transportEd25519SecretKey.key);
   return {
     account: {
       address: accountAddress,

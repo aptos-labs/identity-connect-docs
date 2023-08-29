@@ -12,7 +12,12 @@ import {
   Ed25519PublicKey,
   Ed25519SecretKey,
 } from './utils';
-import { makeEd25519SecretKeySignCallback, messageHash, SignCallback, signWithEd25519SecretKey } from './encrDecr';
+import {
+  makeEd25519SecretKeySignCallbackNoDomainSeparation,
+  messageHash,
+  SignCallback,
+  signWithEd25519SecretKey,
+} from './encrDecr';
 
 const { AuthenticationKey, Ed25519PublicKey: AptosEd25519PublicKey } = TxnBuilderTypes;
 
@@ -68,12 +73,12 @@ export function deriveAccountTransportEd25519Keypair(
   ed25519SecretKeyOrSignCallback: Ed25519SecretKey | SignCallback,
   ed25519PublicKey: Ed25519PublicKey,
 ) {
-  const seedGeneratorBytes = messageHash(ed25519PublicKey.key);
   if (ed25519SecretKeyOrSignCallback instanceof Function) {
+    const seedGeneratorBytes = messageHash(ed25519PublicKey.key, 'TRANSPORT_KEYPAIR');
     return ed25519SecretKeyOrSignCallback(seedGeneratorBytes).then(ed25519KeypairFromSecret);
   }
 
-  const seedBytes = signWithEd25519SecretKey(seedGeneratorBytes, ed25519SecretKeyOrSignCallback);
+  const seedBytes = signWithEd25519SecretKey(ed25519PublicKey.key, ed25519SecretKeyOrSignCallback, 'TRANSPORT_KEYPAIR');
   return ed25519KeypairFromSecret(seedBytes);
 }
 
@@ -105,7 +110,7 @@ export async function createSerializedAccountInfo(
   const accountInfoBytes = new TextEncoder().encode(accountInfoSerialized);
   const accountInfoHash = sha3_256(accountInfoBytes);
 
-  const signatureBytes = await signCallback(messageHash(accountInfoHash));
+  const signatureBytes = await signCallback(messageHash(accountInfoHash, 'ACCOUNT_INFO'));
   const signature = HexString.fromUint8Array(signatureBytes).hex();
   return {
     accountInfoSerialized,
@@ -118,7 +123,7 @@ export async function aptosAccountToSerializedInfo(
   intentId: string,
 ): Promise<AccountConnectInfoSerialized> {
   const key = aptosAccountToEd25519Keypair(account);
-  const signCallback = makeEd25519SecretKeySignCallback(key.secretKey);
+  const signCallback = makeEd25519SecretKeySignCallbackNoDomainSeparation(key.secretKey);
   const transportKey = await deriveAccountTransportEd25519Keypair(signCallback, key.publicKey);
   return createSerializedAccountInfo(
     signCallback,

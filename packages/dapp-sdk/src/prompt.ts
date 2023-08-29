@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 const PROMPT_POLLER_INTERVAL = 500;
-const DEFAULT_PROMPT_SIZE = { height: 600, width: 375 };
+const DEFAULT_PROMPT_SIZE = { height: 695, width: 465 };
 
 export async function openPrompt(url: string, size = DEFAULT_PROMPT_SIZE) {
   const { height, width } = size;

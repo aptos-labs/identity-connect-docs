@@ -1,6 +1,7 @@
 // Copyright © Aptos
 // SPDX-License-Identifier: Apache-2.0
 
+import { encodeBase64 } from '@identity-connect/crypto';
 import { AptosAccount } from 'aptos';
 import { useAppState, WalletAccount } from './AppStateContext.ts';
 
@@ -18,8 +19,8 @@ export default function useAccounts() {
   function generate(): WalletAccount {
     const account = new AptosAccount();
     const address = account.address().hex();
-    const publicKeyB64 = Buffer.from(account.signingKey.publicKey).toString('base64');
-    const secretKeyB64 = Buffer.from(account.signingKey.secretKey).toString('base64');
+    const publicKeyB64 = encodeBase64(account.signingKey.publicKey);
+    const secretKeyB64 = encodeBase64(account.signingKey.secretKey);
     return {
       address,
       publicKeyB64,

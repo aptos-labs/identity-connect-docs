@@ -15,6 +15,7 @@ export function makeMockDappState() {
   };
   const mockDappStateAccessors: DappStateAccessors = {
     get: async (address) => mockDappState.pairings[address],
+    getAll: async () => mockDappState.pairings,
     update: async (address, pairing) => {
       if (pairing === undefined) {
         delete mockDappState.pairings[address];

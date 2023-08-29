@@ -6,7 +6,7 @@
     "lib": [
       "es2021"
     ],
-    "module": "esnext",
+    "module": "commonjs",
     "moduleResolution": "node",
     "isolatedModules": true,
     "esModuleInterop": true,

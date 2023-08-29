@@ -1,12 +1,13 @@
 // Copyright © Aptos
 // SPDX-License-Identifier: Apache-2.0
 
-import ICWalletClient, { WalletConnectionData, WalletInfo } from '@identity-connect/wallet-sdk';
+import { NetworkName } from '@identity-connect/api';
+import { ICWalletClient, WalletConnectionData, WalletInfo } from '@identity-connect/wallet-sdk';
 import { useMemo } from 'react';
 import { useAppState } from './AppStateContext.ts';
 import makeContext from './utils/makeContext.tsx';
 
-const STAGING_BASE_URL = 'https://identity-connect.staging.gcp.aptosdev.com';
+const { VITE_IC_BACKEND_URL } = import.meta.env;
 
 const walletInfo: WalletInfo = {
   deviceIdentifier: 'example-wallet',
@@ -36,6 +37,9 @@ export const [WalletClientContextProvider, useWalletClient] = makeContext<ICWall
       },
     };
 
-    return new ICWalletClient(walletInfo, { accessors, axiosConfig: { baseURL: STAGING_BASE_URL } });
+    return new ICWalletClient(walletInfo, accessors, {
+      axiosConfig: VITE_IC_BACKEND_URL ? { baseURL: VITE_IC_BACKEND_URL } : undefined,
+      defaultNetworkName: NetworkName.TESTNET,
+    });
   }, [appState]);
 });

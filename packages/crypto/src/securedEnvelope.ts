@@ -23,7 +23,6 @@ import {
   serializeEncryptionResult,
   deserializeEncryptionResult,
   verifySignature,
-  messageHash,
   signWithEd25519SecretKey,
 } from './encrDecr';
 
@@ -280,7 +279,7 @@ function signEnvelope(
   senderEd25519SecretKey: Ed25519SecretKey,
 ) {
   const messageHashBytes = combineHashedEnvelopeMessageBytes(publicMessageBytes, privateMessageBytes);
-  const signatureBytes = signWithEd25519SecretKey(messageHash(messageHashBytes), senderEd25519SecretKey);
+  const signatureBytes = signWithEd25519SecretKey(messageHashBytes, senderEd25519SecretKey, 'SECURED_ENVELOPE');
   return HexString.fromUint8Array(signatureBytes).hex();
 }
 
@@ -292,7 +291,12 @@ export function verifyEnvelopeSignature(
 ) {
   const messageSignatureBytes = HexString.ensure(messageSignature).toUint8Array();
   const messageHashBytes = combineHashedEnvelopeMessageBytes(publicMessageBytes, privateMessageBytes);
-  const messageVerified = verifySignature(messageHashBytes, messageSignatureBytes, senderEd25519PublicKey);
+  const messageVerified = verifySignature(
+    messageHashBytes,
+    messageSignatureBytes,
+    senderEd25519PublicKey,
+    'SECURED_ENVELOPE',
+  );
   if (!messageVerified) {
     throw new EnvelopeMessageMismatchError('Could not verify SecuredEnvelope signature', 'messageSignature');
   }
@@ -315,7 +319,7 @@ export function decryptEnvelope<
   verifyEnvelopeSignature(rawPublicMessage, rawPrivateMessage, messageSignature, senderEd25519PublicKey);
 
   // Ensure the public key matches the expected public key
-  const senderEd25519PublicKeyB64 = Buffer.from(senderEd25519PublicKey.key).toString('base64');
+  const senderEd25519PublicKeyB64 = encodeBase64(senderEd25519PublicKey.key);
   const expectedPublicKeyB64 = publicMessage._metadata.senderEd25519PublicKeyB64;
   if (senderEd25519PublicKeyB64 !== expectedPublicKeyB64) {
     throw new EnvelopeMessageMismatchError(

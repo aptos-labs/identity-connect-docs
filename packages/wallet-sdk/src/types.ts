@@ -1,7 +1,13 @@
 // Copyright © Aptos
 // SPDX-License-Identifier: Apache-2.0
 
-import { SerializedPayload, SigningRequestTypes, SignMessageRequestBody } from '@identity-connect/api';
+import {
+  NetworkName,
+  SerializedPayload,
+  SigningRequestTypes,
+  SignMessageRequestBody,
+  RegisteredDappDataBase,
+} from '@identity-connect/api';
 import { AccountConnectInfoSerialized, Ed25519SecretKey } from '@identity-connect/crypto';
 
 export interface WalletAccountConnectInfo {
@@ -11,8 +17,11 @@ export interface WalletAccountConnectInfo {
 
 export interface BaseSignRequest {
   accountAddress: string;
+  createdAt: Date;
   id: string;
+  networkName: NetworkName;
   pairingId: string;
+  registeredDapp: RegisteredDappDataBase;
 }
 
 export interface SignMessageRequest extends BaseSignRequest {

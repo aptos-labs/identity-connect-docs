@@ -30,9 +30,6 @@
   "references": [
     {
       "path": "./tsconfig.node.json"
-    },
-    {
-      "path": "../../../packages/wallet-sdk/tsconfig.build.json"
     }
   ]
 }

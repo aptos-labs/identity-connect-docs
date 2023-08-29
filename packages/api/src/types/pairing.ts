@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { AccountData } from './account';
+import { RegisteredDappDataBase } from './dapp';
 import { WalletData } from './wallet';
 
 export enum PairingStatus {
@@ -16,12 +17,7 @@ export interface BasePairingData {
   id: string;
   maxDappSequenceNumber: number;
   maxWalletSequenceNumber: number;
-  registeredDapp: {
-    description: string;
-    hostname: string;
-    iconUrl: null | string;
-    name: string;
-  };
+  registeredDapp: RegisteredDappDataBase;
   registeredDappId: string;
   status: PairingStatus;
   updatedAt: Date;

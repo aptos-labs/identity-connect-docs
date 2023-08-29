@@ -16,6 +16,7 @@ export type DappPairingDataMap = { [address: string]: DappPairingData };
 
 export interface DappStateAccessors {
   get: (address: string) => Promise<DappPairingData | undefined>;
+  getAll: () => Promise<DappPairingDataMap>;
   update: (address: string, pairing?: DappPairingData) => Promise<void>;
 }
 
@@ -26,14 +27,16 @@ export const DAPP_PAIRINGS_WINDOW_STORAGE_KEY = 'icDappPairings';
  * This should work for most dapps.
  */
 export const windowStateAccessors: DappStateAccessors = {
-  get: async (address: string) => {
-    const serialized = window.localStorage.getItem(DAPP_PAIRINGS_WINDOW_STORAGE_KEY);
-    const pairings = serialized ? (JSON.parse(serialized) as DappPairingDataMap) : {};
+  async get(address: string) {
+    const pairings = await this.getAll();
     return pairings[address];
   },
-  update: async (address: string, pairing?: DappPairingData) => {
+  async getAll() {
     const serialized = window.localStorage.getItem(DAPP_PAIRINGS_WINDOW_STORAGE_KEY);
-    const pairings = serialized ? (JSON.parse(serialized) as DappPairingDataMap) : {};
+    return serialized ? (JSON.parse(serialized) as DappPairingDataMap) : {};
+  },
+  async update(address: string, pairing?: DappPairingData) {
+    const pairings = await this.getAll();
     if (pairing === undefined) {
       delete pairings[address];
     } else {

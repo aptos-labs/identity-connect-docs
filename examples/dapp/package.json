@@ -1,19 +1,19 @@
 {
-  "name": "dapp",
+  "name": "example-dapp",
   "private": true,
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --force",
     "build": "tsc && vite build",
     "lint": "prettier --check src",
     "lint:fix": "prettier --write src && eslint --cache ./src --fix",
     "preview": "vite preview"
   },
   "dependencies": {
+    "@identity-connect/api": "*",
     "@identity-connect/dapp-sdk": "*",
-    "aptos": "^1.8.5",
-    "buffer": "^6.0.3",
+    "aptos": "^1.14.0",
     "react": "18.2.0",
     "react-dom": "18.2.0"
   },

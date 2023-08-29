@@ -7,7 +7,7 @@ import { AptosAccount } from 'aptos';
 import axios from 'axios';
 import MockAdapter from 'axios-mock-adapter';
 import { randomUUID } from 'crypto';
-import ICDappClient from '../client';
+import { ICDappClient } from '../client';
 import { SignRequestError } from '../errors';
 import { DappPairingData } from '../state';
 import MockWindowAPI from './MockWindowAPI';
@@ -125,7 +125,7 @@ describe(ICDappClient, () => {
       expect(pairing.pairingId).toEqual(mockPairingId);
 
       expect(mockPromptWindow.location?.href).toBeDefined();
-      const maybePairingId = mockPromptWindow.location!.href.split('/').pop();
+      const maybePairingId = mockPromptWindow.location?.searchParams.get('pairingId');
       expect(maybePairingId).toBeDefined();
       expect(maybePairingId).toEqual(mockPairingId);
     });
@@ -145,7 +145,14 @@ describe(ICDappClient, () => {
 
       const cancelToken = { cancelled: false };
       const signMessageRequest = wrapPromise(
-        client.signMessage(accountAddress, { message: 'message', nonce: 'nonce' }, cancelToken),
+        client.signMessage(
+          accountAddress,
+          {
+            message: 'message',
+            nonce: 'nonce',
+          },
+          { cancelToken },
+        ),
       );
 
       await jest.runOnlyPendingTimersAsync();

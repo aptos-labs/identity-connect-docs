@@ -83,11 +83,17 @@ export function ed25519KeypairFromSecret(ed25519SecretKeyBytes: Uint8Array): Ed2
 }
 
 export function decodeBase64(base64Str: string): Uint8Array {
-  return new Uint8Array(Buffer.from(base64Str, 'base64'));
+  if (globalThis.Buffer) {
+    return new Uint8Array(Buffer.from(base64Str, 'base64'));
+  }
+  return Uint8Array.from(atob(base64Str), (m) => m.codePointAt(0)!);
 }
 
 export function encodeBase64(bytes: Uint8Array): string {
-  return Buffer.from(bytes).toString('base64');
+  if (globalThis.Buffer) {
+    return Buffer.from(bytes).toString('base64');
+  }
+  return btoa(Array.from(bytes, (x) => String.fromCodePoint(x)).join(''));
 }
 
 export function concatUint8array(arrayOne: Uint8Array, arrayTwo: Uint8Array): Uint8Array {

@@ -15,9 +15,14 @@ import {
   X25519SecretKey,
 } from './utils';
 
+// This callback takes in a message bytes, and signs it.
+// THIS DOES NOT PERFORM DOMAIN SEPARATION: IT IS ASSUMED OUR LIBRARY ALREADY DID IT.
+// This is to support hardware wallets.
 export type SignCallback = (message: Uint8Array) => Promise<Uint8Array>;
 
-export const SIGNATURE_PREFIX_HASH = sha3_256(new TextEncoder().encode('APTOS::IDENTITY_CONNECT::'));
+export type SignaturePurpose = 'TRANSPORT_KEYPAIR' | 'ACCOUNT_INFO' | 'SECURED_ENVELOPE';
+
+export const SIGNATURE_PREFIX = 'APTOS::IDENTITY_CONNECT';
 
 export type EncryptionResult = {
   nonce: Uint8Array;
@@ -106,32 +111,42 @@ export function decryptObject<T>(
   return JSON.parse(decryptedStr) as T;
 }
 
-export function messageHash(message: Uint8Array) {
-  return sha3_256(concatUint8array(SIGNATURE_PREFIX_HASH, message));
+export function messageHash(message: Uint8Array, purpose: SignaturePurpose) {
+  const signaturePrefixHash = new Uint8Array(sha3_256(`${SIGNATURE_PREFIX}::${purpose}::`));
+  return new Uint8Array(sha3_256(concatUint8array(signaturePrefixHash, message)));
 }
 
-export function signWithEd25519SecretKey(message: Uint8Array, signingEd25519SecretKey: Ed25519SecretKey) {
-  return nacl.sign.detached(message, signingEd25519SecretKey.key);
+export function signWithEd25519SecretKey(
+  message: Uint8Array,
+  signingEd25519SecretKey: Ed25519SecretKey,
+  purpose: SignaturePurpose,
+) {
+  return nacl.sign.detached(messageHash(message, purpose), signingEd25519SecretKey.key);
 }
 
-export function makeEd25519SecretKeySignCallback(signingEd25519SecretKey: Ed25519SecretKey): SignCallback {
-  return async (message: Uint8Array) => signWithEd25519SecretKey(message, signingEd25519SecretKey);
+// This assumes that domain separation has already happened: this emulates the behavior of a hardware device
+export function makeEd25519SecretKeySignCallbackNoDomainSeparation(
+  signingEd25519SecretKey: Ed25519SecretKey,
+): SignCallback {
+  return async (message: Uint8Array) => nacl.sign.detached(message, signingEd25519SecretKey.key);
 }
 
 export function verifySignature(
   message: Uint8Array,
   signature: Uint8Array,
   signingEd25519PublicKey: Ed25519PublicKey,
+  purpose: SignaturePurpose,
 ): boolean {
-  return nacl.sign.detached.verify(messageHash(message), signature, signingEd25519PublicKey.key);
+  return nacl.sign.detached.verify(messageHash(message, purpose), signature, signingEd25519PublicKey.key);
 }
 
 export function hashAndVerifySignature(
   message: string | Uint8Array,
   signature: Uint8Array,
   signingEd25519PublicKey: Ed25519PublicKey,
+  purpose: SignaturePurpose,
 ): boolean {
   const messageUint8 = message instanceof Uint8Array ? message : new TextEncoder().encode(message);
   const messageUint8Hash = sha3_256(messageUint8);
-  return verifySignature(messageUint8Hash, signature, signingEd25519PublicKey);
+  return verifySignature(messageUint8Hash, signature, signingEd25519PublicKey, purpose);
 }

@@ -2,7 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { DeserializedTransactionPayload, ensurePayloadDeserialized } from '@identity-connect/api';
-import { KeyTypes, makeEd25519SecretKeySignCallback, toKey } from '@identity-connect/crypto';
+import {
+  decodeBase64,
+  KeyTypes,
+  makeEd25519SecretKeySignCallbackNoDomainSeparation,
+  toKey,
+} from '@identity-connect/crypto';
 import { SignTransactionRequest } from '@identity-connect/wallet-sdk';
 import { HexString, TxnBuilderTypes } from 'aptos';
 import { useMemo } from 'react';
@@ -54,15 +59,15 @@ export default function SignTransactionRequestListItem({ onRespond, request }: R
       throw new Error('Account not available in wallet');
     }
 
-    const accountEd25519SecretKey = toKey(Buffer.from(account.secretKeyB64, 'base64'), KeyTypes.Ed25519SecretKey);
-    const signCallback = makeEd25519SecretKeySignCallback(accountEd25519SecretKey);
+    const accountEd25519SecretKey = toKey(decodeBase64(account.secretKeyB64), KeyTypes.Ed25519SecretKey);
+    const signCallback = makeEd25519SecretKeySignCallbackNoDomainSeparation(accountEd25519SecretKey);
 
     if (action === 'approve') {
       const version = Date.now();
       const hashBytes = await signCallback(new TextEncoder().encode(version.toString()));
-      const hash = Buffer.from(hashBytes).toString('hex');
+      const hashHex = HexString.fromUint8Array(hashBytes);
       const mockUserTxn = {
-        hash,
+        hash: hashHex.toString(),
         sender: account.address,
         sequence_number: 1,
         signature: '0x123456789',

@@ -1,13 +1,13 @@
 // Copyright © Aptos
 // SPDX-License-Identifier: Apache-2.0
 
-import ICDappClient, { DappPairingData } from '@identity-connect/dapp-sdk';
+import { NetworkName } from '@identity-connect/api';
+import { DappPairingData, ICDappClient } from '@identity-connect/dapp-sdk';
 import { useMemo } from 'react';
 import { useAppState } from './AppStateContext.ts';
 import makeContext from './utils/makeContext.tsx';
 
-const STAGING_BASE_URL = 'https://identity-connect.staging.gcp.aptosdev.com';
-const { VITE_DAPP_ID } = import.meta.env;
+const { VITE_DAPP_ID, VITE_IC_BACKEND_URL, VITE_IC_FRONTEND_URL } = import.meta.env;
 
 export const [DappClientContextProvider, useDappClient] = makeContext<ICDappClient>('DappClientContext', () => {
   const appState = useAppState();
@@ -30,10 +30,15 @@ export const [DappClientContextProvider, useDappClient] = makeContext<ICDappClie
       },
     };
 
+    if (VITE_DAPP_ID === undefined) {
+      throw new Error('VITE_DAPP_ID env variable not provided');
+    }
+
     return new ICDappClient(VITE_DAPP_ID, {
       accessors,
-      frontendBaseURL: STAGING_BASE_URL,
-      axiosConfig: { baseURL: STAGING_BASE_URL },
+      axiosConfig: VITE_IC_BACKEND_URL ? { baseURL: VITE_IC_BACKEND_URL } : undefined,
+      defaultNetworkName: NetworkName.TESTNET,
+      frontendBaseURL: VITE_IC_FRONTEND_URL,
     });
   }, [appState]);
 });

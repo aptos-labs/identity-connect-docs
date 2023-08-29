@@ -2,13 +2,10 @@
   "compilerOptions": {
     "target": "ES2020",
     "useDefineForClassFields": true,
-    "lib": [
-      "ES2020",
-      "DOM",
-      "DOM.Iterable"
-    ],
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
     "module": "ESNext",
     "skipLibCheck": true,
+
     /* Bundler mode */
     "moduleResolution": "node",
     "resolveJsonModule": true,
@@ -17,25 +14,18 @@
     "jsx": "react-jsx",
     "allowImportingTsExtensions": true,
     "allowSyntheticDefaultImports": true,
+
     /* Linting */
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": [
-    "src",
-    "./vite.config.ts"
-  ],
-  "exclude": [
-    "node_modules"
-  ],
+  "include": ["src", "./vite.config.ts"],
+  "exclude": ["node_modules"],
   "references": [
     {
       "path": "./tsconfig.node.json"
-    },
-    {
-      "path": "../../../packages/dapp-sdk/tsconfig.build.json"
     }
   ]
 }

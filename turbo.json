@@ -1,29 +1,32 @@
 {
   "$schema": "https://turbo.build/schema.json",
   "pipeline": {
-    "generate":  {
-      "outputs": ["src/generated/**"]
-    },
     "build": {
-      "dependsOn": ["^build", "generate"],
-      "outputs": ["dist/**", ".next/**", "!.next/cache/**", "build/**", "target/**", "ios/**", "android/**"]
+      "dependsOn": [
+        "^build"
+      ],
+      "inputs": [
+        "src/**",
+        "package.json",
+        "tsconfig.build.json"
+      ],
+      "outputs": [
+        "dist/**"
+      ]
     },
-    "export": {
-      "outputs": ["out/**"],
-      "dependsOn": ["build"]
+    "lint": {
+      "dependsOn": ["^build"]
     },
-    "lint": {},
-    "lint:fix": {},
+    "lint:fix": {
+      "dependsOn": ["^build"]
+    },
     "test": {
       "dependsOn": ["build", "^test"],
       "outputs": []
     },
     "dev": {
-      "cache": false
-    },
-    "start": {
-      "dependsOn": ["build"],
-      "cache": false
+      "cache": false,
+      "persistent": true
     }
   }
 }

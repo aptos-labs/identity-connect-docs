@@ -8,6 +8,7 @@ import {
   BackendErrorResponse,
   BackendResponse,
   BaseFinalizedPairingData,
+  GetDappData,
   NewPairingData,
   NewWalletData,
   PairingData,
@@ -17,6 +18,13 @@ import {
   UserData,
   WalletData,
 } from './types';
+
+// region Dapp
+
+export type GetDappResponse = BackendResponse<{ dapp: GetDappData }>;
+export type GetDappSerializedResponse = SerializedDate<GetDappResponse>;
+
+// endregion
 
 // region Wallet
 

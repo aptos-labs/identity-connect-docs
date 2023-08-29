@@ -27,9 +27,9 @@ type SerializedArg = SerializedUint8ArrayArg;
 function isSerializedArg(argument: any): argument is SerializedArg {
   return (
     argument !== undefined &&
-    argument.stringValue !== undefined &&
-    typeof argument.stringValue === 'string' &&
-    argument.type !== undefined
+    argument?.stringValue !== undefined &&
+    typeof argument?.stringValue === 'string' &&
+    argument?.type !== undefined
   );
 }
 

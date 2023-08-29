@@ -1,4 +1,6 @@
 // Copyright © Aptos
 // SPDX-License-Identifier: Apache-2.0
 
-export const DEFAULT_FRONTEND_URL = 'http://localhost:3000';
+import { DEFAULT_BACKEND_URL } from '@identity-connect/api';
+
+export const DEFAULT_FRONTEND_URL = DEFAULT_BACKEND_URL;

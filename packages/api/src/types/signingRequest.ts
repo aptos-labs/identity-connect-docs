@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { SecuredEnvelopeTransport } from '@identity-connect/crypto';
+import { RegisteredDappDataBase } from './dapp';
 
 export enum SigningRequestTypes {
   SIGN_AND_SUBMIT_TRANSACTION = 'SIGN_AND_SUBMIT_TRANSACTION',
@@ -20,6 +21,10 @@ export enum SigningRequestStatus {
 export interface SigningRequestData {
   createdAt: Date;
   id: string;
+  networkName: string | null;
+  pairing: {
+    registeredDapp: RegisteredDappDataBase;
+  };
   pairingId: string;
   requestEnvelope: SecuredEnvelopeTransport;
   requestType: SigningRequestTypes;

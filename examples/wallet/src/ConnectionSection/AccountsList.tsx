@@ -3,7 +3,13 @@
 
 /* eslint-disable jsx-a11y/label-has-associated-control */
 
-import { AccountConnectionAction, KeyTypes, makeEd25519SecretKeySignCallback, toKey } from '@identity-connect/crypto';
+import {
+  AccountConnectionAction,
+  decodeBase64,
+  KeyTypes,
+  makeEd25519SecretKeySignCallbackNoDomainSeparation,
+  toKey,
+} from '@identity-connect/crypto';
 import { createWalletAccountConnectInfo, WalletAccountConnectInfo } from '@identity-connect/wallet-sdk';
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import useAccounts from '../useAccounts.ts';
@@ -44,10 +50,12 @@ const AccountsList = forwardRef<AccountsListHandle, AccountsListProps>(
           const wasConnected = initialConnectedAddresses.has(address);
           const action = wasConnected ? AccountConnectionAction.REMOVE : AccountConnectionAction.ADD;
           const account = accounts[address];
-          const secretKeyBytes = Buffer.from(account.secretKeyB64, 'base64');
-          const publicKeyBytes = Buffer.from(account.publicKeyB64, 'base64');
+          const secretKeyBytes = decodeBase64(account.secretKeyB64);
+          const publicKeyBytes = decodeBase64(account.publicKeyB64);
 
-          const signCallback = makeEd25519SecretKeySignCallback(toKey(secretKeyBytes, KeyTypes.Ed25519SecretKey));
+          const signCallback = makeEd25519SecretKeySignCallbackNoDomainSeparation(
+            toKey(secretKeyBytes, KeyTypes.Ed25519SecretKey),
+          );
           actionRequestCache.current[address] = await createWalletAccountConnectInfo(
             signCallback,
             toKey(publicKeyBytes, KeyTypes.Ed25519PublicKey),

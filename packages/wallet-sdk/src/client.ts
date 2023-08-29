@@ -10,6 +10,7 @@ import {
   GetPairingSerializedResponse,
   GetSigningRequestsSerializedResponse,
   GetWalletSerializedResponse,
+  NetworkName,
   PairingStatus,
   RespondToSignRequestSerializedResponse,
   SignResponseBody,
@@ -19,14 +20,16 @@ import {
 } from '@identity-connect/api';
 import {
   createEd25519KeyPair,
+  decodeBase64,
   decryptEnvelope,
+  encodeBase64,
   encryptAndSignEnvelope,
   IEnvelopeMetadata,
   KeyTypes,
   toKey,
 } from '@identity-connect/crypto';
 import axios, { AxiosInstance, CreateAxiosDefaults } from 'axios';
-import { WalletConnectionAccount, WalletStateAccessors, windowStateAccessors } from './state';
+import { WalletConnectionAccount, WalletStateAccessors } from './state';
 import { SignRequest, WalletAccountConnectInfo } from './types';
 import { walletAccountFromConnectInfo } from './utils';
 
@@ -38,19 +41,21 @@ export interface WalletInfo {
 }
 
 export interface ICWalletClientConfig {
-  accessors?: WalletStateAccessors;
   axiosConfig?: CreateAxiosDefaults;
+  defaultNetworkName?: NetworkName;
 }
 
-export default class ICWalletClient {
-  private readonly accessors: WalletStateAccessors;
+export class ICWalletClient {
+  private readonly defaultNetworkName?: NetworkName;
   private readonly axiosInstance: AxiosInstance;
 
   constructor(
-    private readonly walletInfo: WalletInfo,
-    { accessors = windowStateAccessors, axiosConfig }: ICWalletClientConfig = {},
+    readonly walletInfo: WalletInfo,
+    readonly accessors: WalletStateAccessors,
+    { axiosConfig, defaultNetworkName }: ICWalletClientConfig = {},
   ) {
     this.accessors = accessors;
+    this.defaultNetworkName = defaultNetworkName;
     this.axiosInstance = axios.create({ baseURL: DEFAULT_BACKEND_URL, ...axiosConfig });
   }
 
@@ -80,9 +85,9 @@ export default class ICWalletClient {
     const { icEd25519PublicKeyB64 } = getWalletResp.data.data.wallet;
 
     const { publicKey: walletEd25519PublicKey, secretKey: walletEd25519SecretKey } = createEd25519KeyPair();
-    const icEd25519PublicKey = Buffer.from(icEd25519PublicKeyB64, 'base64');
-    const walletEd25519SecretKeyB64 = Buffer.from(walletEd25519SecretKey.key).toString('base64');
-    const walletEd25519PublicKeyB64 = Buffer.from(walletEd25519PublicKey.key).toString('base64');
+    const icEd25519PublicKey = decodeBase64(icEd25519PublicKeyB64);
+    const walletEd25519SecretKeyB64 = encodeBase64(walletEd25519SecretKey.key);
+    const walletEd25519PublicKeyB64 = encodeBase64(walletEd25519PublicKey.key);
 
     const requestEnvelope = await encryptAndSignEnvelope<any, any>(
       walletEd25519SecretKey,
@@ -126,9 +131,9 @@ export default class ICWalletClient {
     }
 
     const { icEd25519PublicKeyB64, walletEd25519PublicKeyB64, walletEd25519SecretKeyB64 } = connection;
-    const walletEd25519SecretKey = Buffer.from(walletEd25519SecretKeyB64, 'base64');
-    const walletEd25519PublicKey = Buffer.from(walletEd25519PublicKeyB64, 'base64');
-    const icEd25519PublicKey = Buffer.from(icEd25519PublicKeyB64, 'base64');
+    const walletEd25519SecretKey = decodeBase64(walletEd25519SecretKeyB64);
+    const walletEd25519PublicKey = decodeBase64(walletEd25519PublicKeyB64);
+    const icEd25519PublicKey = decodeBase64(icEd25519PublicKeyB64);
 
     const requestEnvelope = await encryptAndSignEnvelope<any, any>(
       toKey(walletEd25519SecretKey, KeyTypes.Ed25519SecretKey),
@@ -170,10 +175,10 @@ export default class ICWalletClient {
 
   async finalizeAnonymousPairingRequest(pairingId: string, accountConnectInfo: WalletAccountConnectInfo) {
     const pairing = await this.getPairing(pairingId);
-    const dappEd25519PublicKey = Buffer.from(pairing.dappEd25519PublicKeyB64, 'base64');
+    const dappEd25519PublicKey = decodeBase64(pairing.dappEd25519PublicKeyB64);
     const { publicKey: walletEd25519PublicKey, secretKey: walletEd25519SecretKey } = createEd25519KeyPair();
-    const walletEd25519SecretKeyB64 = Buffer.from(walletEd25519SecretKey.key).toString('base64');
-    const walletEd25519PublicKeyB64 = Buffer.from(walletEd25519PublicKey.key).toString('base64');
+    const walletEd25519SecretKeyB64 = encodeBase64(walletEd25519SecretKey.key);
+    const walletEd25519PublicKeyB64 = encodeBase64(walletEd25519PublicKey.key);
 
     const requestEnvelope = await encryptAndSignEnvelope<any, any>(
       walletEd25519SecretKey,
@@ -208,7 +213,54 @@ export default class ICWalletClient {
     return data.data.pairing;
   }
 
+  async setNotificationToken(walletId: string, firebaseProjectId: string, notificationToken: string) {
+    const connection = await this.accessors.get(walletId);
+    if (connection === undefined) {
+      throw new Error('Wallet connection not found');
+    }
+
+    const { icEd25519PublicKeyB64, walletEd25519PublicKeyB64, walletEd25519SecretKeyB64 } = connection;
+    const walletEd25519SecretKey = decodeBase64(walletEd25519SecretKeyB64);
+    const walletEd25519PublicKey = decodeBase64(walletEd25519PublicKeyB64);
+    const icEd25519PublicKey = decodeBase64(icEd25519PublicKeyB64);
+
+    const requestEnvelope = await encryptAndSignEnvelope<any, any>(
+      toKey(walletEd25519SecretKey, KeyTypes.Ed25519SecretKey),
+      toKey(walletEd25519PublicKey, KeyTypes.Ed25519PublicKey),
+      toKey(icEd25519PublicKey, KeyTypes.Ed25519PublicKey),
+      0, // ignored
+      {
+        firebaseProjectId,
+        notificationToken,
+      },
+      {},
+    );
+
+    await this.axiosInstance.patch(`v1/wallets/${walletId}/notification-token`, requestEnvelope);
+  }
+
   async removeConnection(walletId: string) {
+    const connection = await this.accessors.get(walletId);
+    if (connection === undefined) {
+      throw new Error('Wallet connection not found');
+    }
+
+    const { icEd25519PublicKeyB64, walletEd25519PublicKeyB64, walletEd25519SecretKeyB64 } = connection;
+    const walletEd25519SecretKey = decodeBase64(walletEd25519SecretKeyB64);
+    const walletEd25519PublicKey = decodeBase64(walletEd25519PublicKeyB64);
+    const icEd25519PublicKey = decodeBase64(icEd25519PublicKeyB64);
+
+    const requestEnvelope = await encryptAndSignEnvelope<any, any>(
+      toKey(walletEd25519SecretKey, KeyTypes.Ed25519SecretKey),
+      toKey(walletEd25519PublicKey, KeyTypes.Ed25519PublicKey),
+      toKey(icEd25519PublicKey, KeyTypes.Ed25519PublicKey),
+      0, // ignored
+      {},
+      {},
+    );
+
+    await this.axiosInstance.patch(`v1/wallets/${walletId}/disconnect`, requestEnvelope);
+
     await this.accessors.update(walletId, undefined);
   }
 
@@ -216,31 +268,22 @@ export default class ICWalletClient {
 
   // region Signing API
 
-  async getSigningRequests(walletId: string) {
+  async getSigningRequests(walletId: string, networkName?: NetworkName) {
     const connection = await this.accessors.get(walletId);
     if (connection === undefined) {
       throw new Error('Wallet is not connected');
     }
 
-    const walletEd25519SecretKey = toKey(
-      Buffer.from(connection.walletEd25519SecretKeyB64, 'base64'),
-      KeyTypes.Ed25519SecretKey,
-    );
-    const walletEd25519PublicKey = toKey(
-      Buffer.from(connection.walletEd25519PublicKeyB64, 'base64'),
-      KeyTypes.Ed25519PublicKey,
-    );
-    const icEd25519PublicKey = toKey(
-      Buffer.from(connection.icEd25519PublicKeyB64, 'base64'),
-      KeyTypes.Ed25519PublicKey,
-    );
+    const walletEd25519SecretKey = toKey(decodeBase64(connection.walletEd25519SecretKeyB64), KeyTypes.Ed25519SecretKey);
+    const walletEd25519PublicKey = toKey(decodeBase64(connection.walletEd25519PublicKeyB64), KeyTypes.Ed25519PublicKey);
+    const icEd25519PublicKey = toKey(decodeBase64(connection.icEd25519PublicKeyB64), KeyTypes.Ed25519PublicKey);
 
     const requestEnvelope = await encryptAndSignEnvelope<any, any>(
       walletEd25519SecretKey,
       walletEd25519PublicKey,
       icEd25519PublicKey,
-      0, // ignored
-      {},
+      0, // ignore
+      { networkName: networkName ?? this.defaultNetworkName },
       {},
     );
 
@@ -262,10 +305,10 @@ export default class ICWalletClient {
         throw new Error('Account not paired');
       }
 
-      const dappEd25519PublicKey = toKey(Buffer.from(dappEd25519PublicKeyB64, 'base64'), KeyTypes.Ed25519PublicKey);
+      const dappEd25519PublicKey = toKey(decodeBase64(dappEd25519PublicKeyB64), KeyTypes.Ed25519PublicKey);
 
       const accountTransportEd25519SecretKey = toKey(
-        Buffer.from(account.transportEd25519SecretKeyB64, 'base64'),
+        decodeBase64(account.transportEd25519SecretKeyB64),
         KeyTypes.Ed25519SecretKey,
       );
 
@@ -274,20 +317,26 @@ export default class ICWalletClient {
         accountTransportEd25519SecretKey,
         signingRequest.requestEnvelope,
       );
+
       const decryptedSigningRequest: SignRequest = {
         accountAddress: account.address,
         body: decryptedEnvelope.privateMessage,
+        createdAt: new Date(signingRequest.createdAt),
         id: signingRequest.id,
+        networkName: decryptedEnvelope.publicMessage?.networkName,
         pairingId: signingRequest.pairingId,
+        registeredDapp: signingRequest.pairing.registeredDapp,
         type: signingRequest.requestType,
       };
       return decryptedSigningRequest;
     });
   }
 
-  async getAllSigningRequests() {
+  async getAllSigningRequests(networkName?: NetworkName) {
     const walletIds = Object.keys(await this.accessors.getAll());
-    const allSigningRequests = await Promise.all(walletIds.map((walletId) => this.getSigningRequests(walletId)));
+    const allSigningRequests = await Promise.all(
+      walletIds.map((walletId) => this.getSigningRequests(walletId, networkName)),
+    );
     return allSigningRequests.flat();
   }
 
@@ -301,11 +350,11 @@ export default class ICWalletClient {
     if (pairing.status !== PairingStatus.Finalized) {
       throw new Error('Pairing is not finalized');
     }
-    const dappEd25519PublicKey = Buffer.from(pairing.dappEd25519PublicKeyB64, 'base64');
+    const dappEd25519PublicKey = decodeBase64(pairing.dappEd25519PublicKeyB64);
 
     const account = await this.getConnectedAccount(pairing.account.accountAddress);
-    const accountTransportEd25519SecretKey = Buffer.from(account.transportEd25519SecretKeyB64, 'base64');
-    const accountTransportEd25519PublicKey = Buffer.from(account.transportEd25519PublicKeyB64, 'base64');
+    const accountTransportEd25519SecretKey = decodeBase64(account.transportEd25519SecretKeyB64);
+    const accountTransportEd25519PublicKey = decodeBase64(account.transportEd25519PublicKeyB64);
 
     const responseEnvelope = await encryptAndSignEnvelope<any, any>(
       toKey(accountTransportEd25519SecretKey, KeyTypes.Ed25519SecretKey),
