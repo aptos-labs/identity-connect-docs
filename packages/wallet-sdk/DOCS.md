@@ -23,7 +23,8 @@ const walletInfo: WalletInfo = {
 const icWalletClient = new ICWalletClient(walletInfo);
 ```
 
-The client needs to persist a state in order to keep track of connections. As placeholder, we are using the [Web Storage API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Storage_API), but it’s highly recommended that the developer provides a custom implementation of state accessors in the constructor options.
+The client needs to persist a state in order to keep track of connections.
+It's required to provide a custom implementation of state accessors in the constructor options.
 
 ```tsx
 import {
@@ -43,10 +44,8 @@ const accessors = {
   },
 };
 
-const icWalletClient = new ICWalletClient(walletInfo, { accessors });
+const icWalletClient = new ICWalletClient(walletInfo, accessors);
 ```
-
-**Note**: in the future we might move the default web storage accessors in a separate package “web” package.
 
 ## Connect wallet to IC
 
@@ -54,7 +53,7 @@ Once the Wallet client is initialized, it can be used to accept a connection req
 
 The user can start a connection request from the IC dashboard, an the connection request id can be scanned as QR code or copied to the clipboard.
 
-The wallet is responsible of allowing the user to either scan the QR code or manually paste the request id.
+The wallet is responsible for allowing the user to either scan the QR code or manually paste the request id.
 
 In order to establish a connection with an account managed by the wallet, the wallet requires it to provide:
 
@@ -94,7 +93,8 @@ const info = await createSerializedAccountInfo(
 );
 ```
 
-The below utility function, will perform the two actions and pack them together into a single `WalletAccountConnectInfo` that is the input type of
+The below utility function, will perform the two actions and pack them together
+into a single `WalletAccountConnectInfo` that is the input type of further methods
 
 ```tsx
 import {
