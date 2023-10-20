@@ -9,6 +9,7 @@ export interface DappPairingData {
   currSequenceNumber: number;
   dappEd25519PublicKeyB64: string;
   dappEd25519SecretKeyB64: string;
+  dappWalletId?: string;
   pairingId: string;
 }
 

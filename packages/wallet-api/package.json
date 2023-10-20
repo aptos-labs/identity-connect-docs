@@ -1,0 +1,27 @@
+{
+  "name": "@identity-connect/wallet-api",
+  "version": "0.0.3",
+  "license": "MIT",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    "require": "./dist/index.js",
+    "import": "./dist/index.mjs"
+  },
+  "scripts": {
+    "build": "tsup src/index.ts --tsconfig tsconfig.build.json --format cjs,esm --sourcemap --dts",
+    "lint": "prettier --check src",
+    "lint:fix": "prettier --write src && eslint --cache ./src --fix"
+  },
+  "dependencies": {
+    "aptos": "^1.20.0"
+  },
+  "devDependencies": {
+    "@identity-connect/eslint-config": "*",
+    "@identity-connect/tsconfig": "*",
+    "ts-node": "10.9.1",
+    "tsup": "^7.1.0",
+    "typescript": "5.0.4"
+  }
+}

@@ -2,9 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 export interface RegisteredDappDataBase {
+  dappSpecificWalletAllowed: boolean;
   description: string | null;
+  feePayerAllowed: boolean;
   hostname: string;
   iconUrl: string | null;
+  id: string;
   name: string;
 }
 

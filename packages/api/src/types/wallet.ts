@@ -3,25 +3,29 @@
 
 import type { AccountData } from './account';
 import type { AnonymousPairingData } from './pairing';
+import { DappSpecificWallet } from './dappSpecificWallet';
 
-export type WalletName = 'petra';
+export type WalletName = 'petra' | 'martian' | 'ic' | 'pontem';
 
-export type WalletOS = 'linux' | 'osx' | 'win' | 'ios' | 'android';
+export type WalletOS = 'linux' | 'osx' | 'win' | 'ios' | 'android' | 'ic';
 
 export type WalletPlatform =
-  | '!test'
   /// Desktop
   | 'firefox-extension'
   | 'chrome-extension'
   | 'safari-extension'
   | 'brave-extension'
   | 'opera-extension'
-  // Mobile
+  /// Mobile
   | 'kiwi-extension'
-  | 'native-app';
+  | 'native-app'
+  /// Reserved for IC full custody
+  | 'ic-dapp-wallet';
 
 export interface BaseWalletData {
   createdAt: Date;
+  dappSpecificWallet?: DappSpecificWallet;
+  dappSpecificWalletId?: string;
   icEd25519PublicKeyB64: string;
   id: string;
   updatedAt: Date;

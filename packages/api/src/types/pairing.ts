@@ -4,6 +4,7 @@
 import { AccountData } from './account';
 import { RegisteredDappDataBase } from './dapp';
 import { WalletData } from './wallet';
+import { DappSpecificWallet } from './dappSpecificWallet';
 
 export enum PairingStatus {
   Finalized = 'FINALIZED',
@@ -13,6 +14,8 @@ export enum PairingStatus {
 export interface BasePairingData {
   createdAt: Date;
   dappEd25519PublicKeyB64: string;
+  dappSpecificWallet?: DappSpecificWallet;
+  dappSpecificWalletId?: string;
   expiresAt: Date;
   id: string;
   maxDappSequenceNumber: number;

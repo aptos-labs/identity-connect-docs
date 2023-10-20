@@ -1380,10 +1380,10 @@ anymatch@^3.0.3, anymatch@~3.1.2:
     normalize-path "^3.0.0"
     picomatch "^2.0.4"
 
-aptos@^1.14.0:
-  version "1.19.0"
-  resolved "https://registry.yarnpkg.com/aptos/-/aptos-1.19.0.tgz#47d075bfd8d28da4ff3c59aa5d1d25335744e168"
-  integrity sha512-IEvEfBFndhDce1HCMdow24Dh52sFFuRcgDpjTbH3Fi4TQpCD9s7zX+C5eCzTNiWQmEH/dfL2uDw5dbREGQxsbQ==
+aptos@^1.20.0:
+  version "1.20.0"
+  resolved "https://registry.yarnpkg.com/aptos/-/aptos-1.20.0.tgz#ef47a7c198ad61848336dc35f3d17417028e483a"
+  integrity sha512-driZt7qEr4ndKqqVHMyuFsQAHy4gJ4HPQttgVIpeDfnOIEnIV7A2jyJ9EYO2A+MayuyxXB+7yCNXT4HyBFJdpA==
   dependencies:
     "@aptos-labs/aptos-client" "^0.0.2"
     "@noble/hashes" "1.1.3"

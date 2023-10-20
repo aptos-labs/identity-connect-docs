@@ -13,7 +13,6 @@ import {
   NetworkName,
   PairingStatus,
   RespondToSignRequestSerializedResponse,
-  SignResponseBody,
   WalletName,
   WalletOS,
   WalletPlatform,
@@ -30,8 +29,10 @@ import {
 } from '@identity-connect/crypto';
 import axios, { AxiosInstance, CreateAxiosDefaults } from 'axios';
 import { WalletConnectionAccount, WalletStateAccessors } from './state';
-import { SignRequest, WalletAccountConnectInfo } from './types';
+import { SerializedSignatureResponseArgs, SignatureRequest, WalletAccountConnectInfo } from './types';
 import { walletAccountFromConnectInfo } from './utils';
+
+const API_VERSION = '0.2.0' as const;
 
 export interface WalletInfo {
   deviceIdentifier: string;
@@ -283,7 +284,7 @@ export class ICWalletClient {
       walletEd25519PublicKey,
       icEd25519PublicKey,
       0, // ignore
-      { networkName: networkName ?? this.defaultNetworkName },
+      { apiVersion: API_VERSION, networkName: networkName ?? this.defaultNetworkName },
       {},
     );
 
@@ -318,9 +319,11 @@ export class ICWalletClient {
         signingRequest.requestEnvelope,
       );
 
-      const decryptedSigningRequest: SignRequest = {
+      const apiVersion: string = decryptedEnvelope.publicMessage?.apiVersion ?? '0.1.0';
+      const decryptedSigningRequest: SignatureRequest = {
         accountAddress: account.address,
-        body: decryptedEnvelope.privateMessage,
+        apiVersion,
+        args: decryptedEnvelope.privateMessage,
         createdAt: new Date(signingRequest.createdAt),
         id: signingRequest.id,
         networkName: decryptedEnvelope.publicMessage?.networkName,
@@ -328,6 +331,17 @@ export class ICWalletClient {
         registeredDapp: signingRequest.pairing.registeredDapp,
         type: signingRequest.requestType,
       };
+
+      // Request type normalization so that wallet doesn't break. Will remove in the near future
+      const [apiMajorVersion, apiMinorVersion] = apiVersion.split('.').map(Number);
+      if (
+        apiMajorVersion === 0 &&
+        apiMinorVersion === 1 &&
+        decryptedSigningRequest.type === 'SIGN_AND_SUBMIT_TRANSACTION'
+      ) {
+        decryptedSigningRequest.args = { payload: decryptedSigningRequest.args as any };
+      }
+
       return decryptedSigningRequest;
     });
   }
@@ -344,7 +358,7 @@ export class ICWalletClient {
     signingRequestId: string,
     pairingId: string,
     action: string,
-    responseBody?: SignResponseBody,
+    args?: SerializedSignatureResponseArgs,
   ) {
     const pairing = await this.getPairing(pairingId);
     if (pairing.status !== PairingStatus.Finalized) {
@@ -365,7 +379,7 @@ export class ICWalletClient {
         action,
         signingRequestId,
       },
-      responseBody ?? {},
+      args ?? {},
     );
 
     const response = await this.axiosInstance.patch<RespondToSignRequestSerializedResponse>(
@@ -376,8 +390,8 @@ export class ICWalletClient {
     return response.data;
   }
 
-  async approveSigningRequest(signingRequestId: string, pairingId: string, responseBody: SignResponseBody) {
-    return this.respondToSigningRequest(signingRequestId, pairingId, 'approve', responseBody);
+  async approveSigningRequest(signingRequestId: string, pairingId: string, args: SerializedSignatureResponseArgs) {
+    return this.respondToSigningRequest(signingRequestId, pairingId, 'approve', args);
   }
 
   async rejectSigningRequest(signingRequestId: string, pairingId: string) {

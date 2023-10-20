@@ -9,3 +9,4 @@ export * from './serialize';
 export * from './signingRequest';
 export * from './user';
 export * from './wallet';
+export * from './dappSpecificWallet';

@@ -8,7 +8,6 @@ import { useAppState } from './AppStateContext.ts';
 import makeContext from './utils/makeContext.tsx';
 
 const { VITE_IC_BACKEND_URL } = import.meta.env;
-
 const walletInfo: WalletInfo = {
   deviceIdentifier: 'example-wallet',
   platform: 'chrome-extension',

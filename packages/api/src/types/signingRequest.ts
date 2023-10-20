@@ -7,7 +7,7 @@ import { RegisteredDappDataBase } from './dapp';
 export enum SigningRequestTypes {
   SIGN_AND_SUBMIT_TRANSACTION = 'SIGN_AND_SUBMIT_TRANSACTION',
   SIGN_MESSAGE = 'SIGN_MESSAGE',
-  // SIGN_TRANSACTION = 'SIGN_TRANSACTION',
+  SIGN_TRANSACTION = 'SIGN_TRANSACTION',
 }
 
 export enum SigningRequestStatus {
@@ -19,6 +19,7 @@ export enum SigningRequestStatus {
 }
 
 export interface SigningRequestData {
+  apiVersion: string;
   createdAt: Date;
   id: string;
   networkName: string | null;

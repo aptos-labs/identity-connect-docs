@@ -1,10 +1,10 @@
 // Copyright © Aptos
 // SPDX-License-Identifier: Apache-2.0
 
-import { SignMessageResponseBody, SignTransactionResponseBody } from '@identity-connect/api';
-import { UnexpectedSignResponseError } from './errors';
+import { SignAndSubmitTransactionResponseArgs, SignMessageResponseArgs } from '@identity-connect/wallet-api';
+import { UnexpectedSignatureResponseError } from './errors';
 
-const SIGN_MESSAGE_RESPONSE_REQUIRED_FIELDS: (keyof SignMessageResponseBody)[] = [
+const SIGN_MESSAGE_RESPONSE_REQUIRED_FIELDS: (keyof SignMessageResponseArgs)[] = [
   'address',
   'application',
   'chainId',
@@ -15,26 +15,22 @@ const SIGN_MESSAGE_RESPONSE_REQUIRED_FIELDS: (keyof SignMessageResponseBody)[] =
   'signature',
 ];
 
-export function validateSignMessageResponse(response: SignMessageResponseBody) {
+export function validateSignMessageResponse(response: SignMessageResponseArgs) {
   const providedFields = new Set(Object.keys(response));
   const missingFields = SIGN_MESSAGE_RESPONSE_REQUIRED_FIELDS.filter((field) => !providedFields.has(field));
   if (missingFields.length > 0) {
-    throw new UnexpectedSignResponseError(missingFields);
+    throw new UnexpectedSignatureResponseError(missingFields);
   }
 }
 
-const SIGN_TRANSACTION_RESPONSE_REQUIRED_FIELDS: (keyof SignTransactionResponseBody)[] = [
-  'hash',
-  'signature',
-  'version',
-  'sender',
-  'sequence_number',
-];
+const SIGN_AND_SUBMIT_TRANSACTION_RESPONSE_REQUIRED_FIELDS: (keyof SignAndSubmitTransactionResponseArgs)[] = ['hash'];
 
-export function validateSignAndSubmitTransactionResponse(response: SignTransactionResponseBody) {
+export function validateSignAndSubmitTransactionResponse(response: SignAndSubmitTransactionResponseArgs) {
   const providedFields = new Set(Object.keys(response));
-  const missingFields = SIGN_TRANSACTION_RESPONSE_REQUIRED_FIELDS.filter((field) => !providedFields.has(field));
+  const missingFields = SIGN_AND_SUBMIT_TRANSACTION_RESPONSE_REQUIRED_FIELDS.filter(
+    (field) => !providedFields.has(field),
+  );
   if (missingFields.length > 0) {
-    throw new UnexpectedSignResponseError(missingFields);
+    throw new UnexpectedSignatureResponseError(missingFields);
   }
 }

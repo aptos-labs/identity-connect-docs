@@ -23,6 +23,14 @@ export default function AccountsListItem({ pairing }: AccountsListItemProps) {
     }
   });
 
+  const offboard = async () => {
+    await dappClient.offboard(pairing.accountAddress);
+    const activeAccountAddress = appState.get('activeAccountAddress');
+    if (activeAccountAddress === pairing.accountAddress) {
+      appState.set('activeAccountAddress', undefined);
+    }
+  };
+
   const onSelect = () => {
     appState.set('activeAccountAddress', pairing.accountAddress);
   };
@@ -46,6 +54,11 @@ export default function AccountsListItem({ pairing }: AccountsListItemProps) {
       <button type="button" className="btn-small" onClick={disconnect.trigger} disabled={disconnect.isLoading}>
         x
       </button>
+      {pairing.dappWalletId ? (
+        <button type="button" className="btn-small" onClick={offboard}>
+          Off
+        </button>
+      ) : null}
     </li>
   );
 }

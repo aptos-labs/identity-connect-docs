@@ -7,6 +7,7 @@ import {
   makeEd25519SecretKeySignCallbackNoDomainSeparation,
   toKey,
 } from '@identity-connect/crypto';
+import { FullMessageParams, makeFullMessage } from '@identity-connect/wallet-api';
 import { SignMessageRequest } from '@identity-connect/wallet-sdk';
 import { HexString } from 'aptos';
 import { useAppState } from '../AppStateContext.ts';
@@ -34,37 +35,24 @@ export default function SignMessageRequestListItem({ onRespond, request }: Reque
     const signCallback = makeEd25519SecretKeySignCallbackNoDomainSeparation(accountEd25519SecretKey);
 
     if (action === 'approve') {
-      const nonce = Date.now().toString();
-      // TODO: derive from SigningRequest
-      const application = 'Dapp example';
-      // TODO: derive from network
-      const chainId = 1;
-      const prefix = 'ExampleWallet::';
-      const { message } = request.body;
+      const { message, nonce, ...flags } = request.args;
 
-      const fullMessageParts = [
-        request.body.address ? request.accountAddress : undefined,
-        request.body.chainId ? chainId : undefined,
-        request.body.application ? application : undefined,
-        request.body.nonce ? nonce : undefined,
-        prefix,
-        message,
-      ];
+      const address = request.accountAddress;
+      const application = request.registeredDapp.hostname;
+      const chainId = request.networkName === 'mainnet' ? 1 : 2;
+      const params: FullMessageParams = { address, application, chainId, message, nonce };
 
-      const fullMessage = fullMessageParts.filter(Boolean).join('\n');
+      const { fullMessage, prefix } = makeFullMessage(params, flags);
+
       const fullMessageBytes = new TextEncoder().encode(fullMessage);
-
       const signatureBytes = await signCallback(fullMessageBytes);
-      const signatureHex = HexString.fromUint8Array(signatureBytes);
+      const signature = HexString.fromUint8Array(signatureBytes).toString();
+
       await walletClient.approveSigningRequest(request.id, request.pairingId, {
-        address: request.accountAddress,
-        application: 'dapp example',
-        chainId: 1,
+        ...params,
         fullMessage,
-        message,
-        nonce,
         prefix,
-        signature: signatureHex.toString(),
+        signature,
       });
     } else {
       await walletClient.rejectSigningRequest(request.id, request.pairingId);
@@ -80,7 +68,7 @@ export default function SignMessageRequestListItem({ onRespond, request }: Reque
         <div>
           ({collapsedId}) <b>Sign Message</b>
         </div>
-        <div>{request.body.message}</div>
+        <div>{request.args.message}</div>
       </div>
       <div>
         <button

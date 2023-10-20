@@ -8,19 +8,14 @@ import {
   CreatePairingSerializedResponse,
   CreateSigningRequestSerializedResponse,
   DEFAULT_BACKEND_URL,
-  ensurePayloadSerialized,
   FinalizedPairingData,
+  GetPairingSerializedResponse,
   GetSigningRequestSerializedResponse,
   NetworkName,
   SerializedDate,
-  SerializedPayload,
   SigningRequestData,
   SigningRequestStatus,
   SigningRequestTypes,
-  SignMessageRequestBody,
-  SignMessageResponseBody,
-  SignTransactionRequestBody,
-  SignTransactionResponseBody,
 } from '@identity-connect/api';
 import {
   createEd25519KeyPair,
@@ -33,20 +28,55 @@ import {
   KeyTypes,
   toKey,
 } from '@identity-connect/crypto';
-import axios, { AxiosInstance, CreateAxiosDefaults, isAxiosError } from 'axios';
+import {
+  deserializeSignTransactionResponseArgs,
+  type SerializedSignAndSubmitTransactionRequestArgs,
+  type SerializedSignTransactionRequestArgs,
+  type SerializedSignTransactionResponseArgs,
+  serializeSignAndSubmitTransactionRequestArgs,
+  serializeSignTransactionRequestArgs,
+  type SignAndSubmitTransactionRequestArgs,
+  type SignAndSubmitTransactionResponseArgs,
+  SignMessageRequestArgs,
+  SignMessageResponseArgs,
+  type SignTransactionRequestArgs,
+  type SignTransactionResponseArgs,
+  type SignTransactionWithPayloadRequestArgs,
+  type SignTransactionWithPayloadResponseArgs,
+  type SignTransactionWithRawTxnRequestArgs,
+  type SignTransactionWithRawTxnResponseArgs,
+} from '@identity-connect/wallet-api';
+import axios, { AxiosError, AxiosInstance, CreateAxiosDefaults, isAxiosError } from 'axios';
 import { DEFAULT_FRONTEND_URL } from './constants';
-import { PairingExpiredError, SignRequestError } from './errors';
+import { PairingExpiredError, SignatureRequestError, UnregisteredDappError } from './errors';
 import { openPrompt, waitForPromptResponse } from './prompt';
 import { DappPairingData, DappStateAccessors, windowStateAccessors } from './state';
 import { CancelToken } from './types';
 import { validateSignAndSubmitTransactionResponse, validateSignMessageResponse } from './utils';
 
+const API_VERSION = '0.2.0' as const;
 const SIGNING_REQUEST_POLLING_INTERVAL = 2500;
+const SEQUENCE_NUMBER_MISMATCH_PATTERN = /^Sequence number mismatch, expected (?:\S+ to be )?(\d+)/;
 
 async function waitFor(milliseconds: number) {
   return new Promise((resolve) => {
     setTimeout(resolve, milliseconds);
   });
+}
+
+async function withRetries<Response>(
+  requestFn: () => Promise<Response>,
+  onError: (err: any) => void,
+  retries: number = 1,
+) {
+  for (let i = 0; i < retries; i += 1) {
+    try {
+      return await requestFn();
+    } catch (err) {
+      onError(err);
+    }
+  }
+  return requestFn();
 }
 
 export interface SignRequestOptions {
@@ -71,6 +101,8 @@ export class ICDappClient {
   private readonly axiosInstance: AxiosInstance;
   private readonly frontendBaseURL: string;
 
+  private readonly initPromise?: Promise<void>;
+
   constructor(
     private readonly dappId: string,
     {
@@ -87,14 +119,49 @@ export class ICDappClient {
       ...axiosConfig,
     });
     this.frontendBaseURL = frontendBaseURL;
+
+    const isClientSideRendering = typeof window !== 'undefined';
+    this.initPromise = isClientSideRendering ? this.syncFirstPairing() : undefined;
+  }
+
+  private async getPairing(id: string) {
+    const response = await this.axiosInstance.get<GetPairingSerializedResponse>(`v1/pairing/${id}`);
+    return response.data.data.pairing;
+  }
+
+  private async syncFirstPairing() {
+    const pairings = await this.accessors.getAll();
+    const firstPairing = Object.values(pairings)[0];
+    if (firstPairing === undefined) {
+      return;
+    }
+
+    try {
+      const { dappSpecificWallet, maxDappSequenceNumber } = await this.getPairing(firstPairing.pairingId);
+      await this.accessors.update(firstPairing.accountAddress, {
+        ...firstPairing,
+        currSequenceNumber: maxDappSequenceNumber,
+        dappWalletId: dappSpecificWallet?.id,
+      });
+    } catch (err) {
+      await this.accessors.update(firstPairing.accountAddress, undefined);
+    }
   }
 
   private async createPairingRequest(dappEd25519PublicKeyB64: string) {
-    const response = await this.axiosInstance.post<CreatePairingSerializedResponse>('v1/pairing', {
-      dappEd25519PublicKeyB64,
-      dappId: this.dappId,
-    });
-    return response.data.data.pairing;
+    try {
+      const response = await this.axiosInstance.post<CreatePairingSerializedResponse>('v1/pairing', {
+        dappEd25519PublicKeyB64,
+        dappId: this.dappId,
+      });
+      return response.data.data.pairing;
+    } catch (err) {
+      // TODO: export typed errors from API
+      if (isAxiosError(err) && err.response?.data?.message === 'Dapp not found') {
+        throw new UnregisteredDappError();
+      }
+      throw err;
+    }
   }
 
   private async createSigningRequest<TRequestBody>(
@@ -107,28 +174,42 @@ export class ICDappClient {
     const dappEd25519PublicKey = decodeBase64(pairing.dappEd25519PublicKeyB64);
     const accountTransportEd25519PublicKey = decodeBase64(pairing.accountTransportEd25519PublicKeyB64);
 
-    const sequenceNumber = pairing.currSequenceNumber;
-    const requestEnvelope = await encryptAndSignEnvelope<any, any>(
-      toKey(dappEd25519SecretKey, KeyTypes.Ed25519SecretKey),
-      toKey(dappEd25519PublicKey, KeyTypes.Ed25519PublicKey),
-      toKey(accountTransportEd25519PublicKey, KeyTypes.Ed25519PublicKey),
-      sequenceNumber + 1,
-      { networkName, requestType: type },
-      requestBody,
+    let sequenceNumber = pairing.currSequenceNumber + 1;
+    return withRetries(
+      async () => {
+        const requestEnvelope = await encryptAndSignEnvelope<any, any>(
+          toKey(dappEd25519SecretKey, KeyTypes.Ed25519SecretKey),
+          toKey(dappEd25519PublicKey, KeyTypes.Ed25519PublicKey),
+          toKey(accountTransportEd25519PublicKey, KeyTypes.Ed25519PublicKey),
+          sequenceNumber,
+          { apiVersion: API_VERSION, networkName, requestType: type },
+          requestBody,
+        );
+
+        const response = await this.axiosInstance.post<CreateSigningRequestSerializedResponse>(
+          `v1/pairing/${pairing.pairingId}/signing-request`,
+          requestEnvelope,
+        );
+
+        await this.accessors.update(pairing.accountAddress, {
+          ...pairing,
+          currSequenceNumber: sequenceNumber,
+        });
+
+        return response.data.data.signingRequest;
+      },
+      (err) => {
+        if (isAxiosError(err)) {
+          const errorMessage: string = err.response?.data?.message;
+          const expectedSequenceNumber = errorMessage?.match(SEQUENCE_NUMBER_MISMATCH_PATTERN)?.[1];
+          if (expectedSequenceNumber !== undefined) {
+            sequenceNumber = Number(expectedSequenceNumber);
+            return;
+          }
+        }
+        throw err;
+      },
     );
-
-    const response = await this.axiosInstance.post<CreateSigningRequestSerializedResponse>(
-      `v1/pairing/${pairing.pairingId}/signing-request`,
-      requestEnvelope,
-    );
-
-    // TODO: auto-sync sequence number on error
-    await this.accessors.update(pairing.accountAddress, {
-      ...pairing,
-      currSequenceNumber: sequenceNumber + 1,
-    });
-
-    return response.data.data.signingRequest;
   }
 
   private async getSigningRequest(id: string) {
@@ -193,6 +274,7 @@ export class ICDappClient {
     requestBody: TRequestBody,
     { cancelToken, networkName }: SignRequestOptions = {},
   ) {
+    await this.initPromise;
     const pairing = await this.accessors.get(address);
     if (pairing === undefined) {
       throw new Error('The requested account is not paired');
@@ -229,7 +311,7 @@ export class ICDappClient {
     }
 
     if (signingRequest.status !== 'APPROVED') {
-      throw new SignRequestError(signingRequest.status);
+      throw new SignatureRequestError(signingRequest.status);
     }
 
     const decrypted = decryptEnvelope<{}, TResponseBody & {}>(
@@ -251,14 +333,29 @@ export class ICDappClient {
     const { publicKey, secretKey } = createEd25519KeyPair();
     const dappEd25519PublicKeyB64 = encodeBase64(publicKey.key);
 
-    const { id: pairingId } = await this.createPairingRequest(dappEd25519PublicKeyB64);
+    // Open the prompt without pairingId (for a snappier ux)
     const url = new URL(`${this.frontendBaseURL}/pairing`);
-    url.searchParams.set('pairingId', pairingId);
     const promptWindow = await openPrompt(url.href);
+
+    let pairingId: string;
+    try {
+      const pendingPairing = await this.createPairingRequest(dappEd25519PublicKeyB64);
+      pairingId = pendingPairing.id;
+    } catch (err) {
+      // Close the prompt and have the dapp handle the error
+      promptWindow.close();
+      throw err;
+    }
+
+    // Update the prompt's URL as soon as a pairingId is available
+    url.searchParams.set('pairingId', pairingId);
+    promptWindow.location.href = url.href;
     const finalizedPairing = await waitForPromptResponse<FinalizedPairingData>(promptWindow);
 
     if (finalizedPairing === undefined) {
-      await this.deletePairing(pairingId, secretKey, publicKey);
+      // Ignore the result. This is just a courtesy call, so if anything goes wrong
+      // the pairing will be removed during scheduled cleanup)
+      void this.deletePairing(pairingId, secretKey, publicKey);
       return undefined;
     }
 
@@ -270,6 +367,7 @@ export class ICDappClient {
       currSequenceNumber: finalizedPairing.maxDappSequenceNumber,
       dappEd25519PublicKeyB64: encodeBase64(publicKey.key),
       dappEd25519SecretKeyB64: encodeBase64(secretKey.key),
+      dappWalletId: finalizedPairing.dappSpecificWalletId,
       pairingId: finalizedPairing.id,
     });
 
@@ -295,40 +393,105 @@ export class ICDappClient {
     }
   }
 
-  async signMessage(address: string, payload: SignMessageRequestBody, options?: SignRequestOptions) {
-    const response = await this.signRequest<SignMessageRequestBody, SignMessageResponseBody>(
+  async signMessage(address: string, args: SignMessageRequestArgs, options?: SignRequestOptions) {
+    const response = await this.signRequest<SignMessageRequestArgs, SignMessageResponseArgs>(
       address,
       SigningRequestTypes.SIGN_MESSAGE,
-      payload,
+      args,
       options,
     );
     validateSignMessageResponse(response);
     return response;
   }
 
+  // region signTransaction
+
+  async signTransaction(
+    address: string,
+    args: SignTransactionWithPayloadRequestArgs,
+    options?: SignRequestOptions,
+  ): Promise<SignTransactionWithPayloadResponseArgs>;
+
+  async signTransaction(
+    address: string,
+    args: SignTransactionWithRawTxnRequestArgs,
+    options?: SignRequestOptions,
+  ): Promise<SignTransactionWithRawTxnResponseArgs>;
+
+  async signTransaction(
+    address: string,
+    args: SignTransactionRequestArgs,
+    options?: SignRequestOptions,
+  ): Promise<SignTransactionResponseArgs>;
+
+  async signTransaction(
+    address: string,
+    args: SignTransactionRequestArgs,
+    options?: SignRequestOptions,
+  ): Promise<SignTransactionResponseArgs> {
+    const serializedRequestArgs = serializeSignTransactionRequestArgs(args);
+    const serializedResponseArgs = await this.signRequest<
+      SerializedSignTransactionRequestArgs,
+      SerializedSignTransactionResponseArgs
+    >(address, SigningRequestTypes.SIGN_TRANSACTION, serializedRequestArgs, options);
+    return deserializeSignTransactionResponseArgs(serializedResponseArgs);
+  }
+
+  // endregion
+
   async signAndSubmitTransaction(
     address: string,
-    payload: SignTransactionRequestBody,
+    args: SignAndSubmitTransactionRequestArgs,
     options?: SignRequestOptions,
-  ): Promise<SignTransactionResponseBody> {
-    const serializedPayload = ensurePayloadSerialized(payload);
-    const response = await this.signRequest<SerializedPayload, SignTransactionResponseBody>(
-      address,
-      SigningRequestTypes.SIGN_AND_SUBMIT_TRANSACTION,
-      serializedPayload,
-      options,
-    );
-    validateSignAndSubmitTransactionResponse(response);
-    return response;
+  ): Promise<SignAndSubmitTransactionResponseArgs> {
+    const serializedRequestArgs = serializeSignAndSubmitTransactionRequestArgs(args);
+    try {
+      const responseArgs = await this.signRequest<
+        SerializedSignAndSubmitTransactionRequestArgs,
+        SignAndSubmitTransactionResponseArgs
+      >(address, SigningRequestTypes.SIGN_AND_SUBMIT_TRANSACTION, serializedRequestArgs, options);
+      validateSignAndSubmitTransactionResponse(responseArgs);
+      return responseArgs;
+    } catch (e) {
+      if (e instanceof AxiosError && e.response?.data?.message) {
+        throw new Error(e.response?.data?.message);
+      }
+      throw e;
+    }
   }
 
   async getConnectedAccounts() {
+    await this.initPromise;
     const pairings = await this.accessors.getAll();
-    return Object.values(pairings).map(({ accountAddress, accountAlias, accountEd25519PublicKeyB64 }) => ({
-      accountAddress,
-      accountAlias,
-      accountEd25519PublicKeyB64,
-    }));
+    return Object.values(pairings).map(
+      ({ accountAddress, accountAlias, accountEd25519PublicKeyB64, dappWalletId }) => ({
+        accountAddress,
+        accountAlias,
+        accountEd25519PublicKeyB64,
+        dappWalletId,
+      }),
+    );
+  }
+
+  async offboard(address: string) {
+    const pairing = await this.accessors.get(address);
+    if (pairing === undefined) {
+      throw new Error('This account is not paired');
+    }
+
+    const walletId = pairing.dappWalletId;
+    if (walletId === undefined) {
+      throw new Error('This account cannot be offboarded');
+    }
+
+    const promptWindow = await openPrompt(`${this.frontendBaseURL}/offboarding?walletId=${walletId}`);
+    const response = await waitForPromptResponse(promptWindow);
+    if (response.success === true) {
+      // If exported, disconnect the pairing to clean up
+      this.disconnect(address);
+      return true;
+    }
+    return false;
   }
 
   // endregion

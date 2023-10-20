@@ -1,6 +1,6 @@
 {
   "name": "@identity-connect/wallet-sdk",
-  "version": "0.2.6",
+  "version": "0.4.0",
   "license": "MIT",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
@@ -18,8 +18,9 @@
     "lint:fix": "prettier --write src && eslint --cache ./src --fix"
   },
   "dependencies": {
-    "@identity-connect/api": "^0.1.2",
+    "@identity-connect/api": "^0.4.0",
     "@identity-connect/crypto": "^0.1.3",
+    "@identity-connect/wallet-api": "^0.0.3",
     "axios": "^1.4.0"
   },
   "devDependencies": {

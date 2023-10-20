@@ -14,7 +14,8 @@
     "@identity-connect/api": "*",
     "@identity-connect/crypto": "*",
     "@identity-connect/wallet-sdk": "*",
-    "aptos": "^1.14.0",
+    "@identity-connect/wallet-api": "*",
+    "aptos": "^1.20.0",
     "react": "18.2.0",
     "react-dom": "18.2.0"
   },

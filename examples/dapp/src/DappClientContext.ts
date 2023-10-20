@@ -1,7 +1,6 @@
 // Copyright © Aptos
 // SPDX-License-Identifier: Apache-2.0
 
-import { NetworkName } from '@identity-connect/api';
 import { DappPairingData, ICDappClient } from '@identity-connect/dapp-sdk';
 import { useMemo } from 'react';
 import { useAppState } from './AppStateContext.ts';
@@ -12,6 +11,7 @@ const { VITE_DAPP_ID, VITE_IC_BACKEND_URL, VITE_IC_FRONTEND_URL } = import.meta.
 export const [DappClientContextProvider, useDappClient] = makeContext<ICDappClient>('DappClientContext', () => {
   const appState = useAppState();
 
+  const selectedNetwork = appState.watch('selectedNetwork');
   return useMemo(() => {
     const accessors = {
       get: async (address: string) => {
@@ -37,8 +37,8 @@ export const [DappClientContextProvider, useDappClient] = makeContext<ICDappClie
     return new ICDappClient(VITE_DAPP_ID, {
       accessors,
       axiosConfig: VITE_IC_BACKEND_URL ? { baseURL: VITE_IC_BACKEND_URL } : undefined,
-      defaultNetworkName: NetworkName.TESTNET,
+      defaultNetworkName: appState.get('selectedNetwork'),
       frontendBaseURL: VITE_IC_FRONTEND_URL,
     });
-  }, [appState]);
+  }, [appState, selectedNetwork]);
 });

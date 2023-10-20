@@ -1,14 +1,15 @@
 // Copyright © Aptos
 // SPDX-License-Identifier: Apache-2.0
 
-import { SigningRequestStatus, SignMessageRequestBody, SignMessageResponseBody } from '@identity-connect/api';
+import { SigningRequestStatus } from '@identity-connect/api';
 import { createEd25519KeyPair, deriveAccountTransportEd25519Keypair } from '@identity-connect/crypto';
+import { SignMessageRequestArgs, SignMessageResponseArgs } from '@identity-connect/wallet-api';
 import { AptosAccount } from 'aptos';
 import axios from 'axios';
 import MockAdapter from 'axios-mock-adapter';
 import { randomUUID } from 'crypto';
 import { ICDappClient } from '../client';
-import { SignRequestError } from '../errors';
+import { SignatureRequestError } from '../errors';
 import { DappPairingData } from '../state';
 import MockWindowAPI from './MockWindowAPI';
 import { makeMockDappState, makeResponseEnvelope, wrapPromise } from './testUtils';
@@ -64,6 +65,7 @@ function setupMockPairing() {
     [accountAddress]: mockPairing,
   };
 
+  mockAxios.onGet(`v1/pairing/${pairingId}`).reply(200, { data: { pairing: { maxDappSequenceNumber: 0 } } });
   return { accountAddress, accountKeys, dappKeys, pairingId, transportKeys };
 }
 
@@ -161,7 +163,7 @@ describe(ICDappClient, () => {
       cancelToken.cancelled = true;
       jest.runOnlyPendingTimers();
 
-      await expect(signMessageRequest).rejects.toThrow(new SignRequestError(SigningRequestStatus.CANCELLED));
+      await expect(signMessageRequest).rejects.toThrow(new SignatureRequestError(SigningRequestStatus.CANCELLED));
     });
     it('throws when rejected', async () => {
       const { accountAddress, pairingId } = setupMockPairing();
@@ -175,7 +177,7 @@ describe(ICDappClient, () => {
       mockAxios.onPost(`v1/pairing/${pairingId}/signing-request`).reply(200, { data: { signingRequest } });
       const signMessageRequest = client.signMessage(accountAddress, { message: 'message', nonce: 'nonce' });
 
-      await expect(signMessageRequest).rejects.toThrow(new SignRequestError(SigningRequestStatus.REJECTED));
+      await expect(signMessageRequest).rejects.toThrow(new SignatureRequestError(SigningRequestStatus.REJECTED));
     });
     it('throws when invalid', async () => {
       const { accountAddress, pairingId } = setupMockPairing();
@@ -189,7 +191,7 @@ describe(ICDappClient, () => {
       mockAxios.onPost(`v1/pairing/${pairingId}/signing-request`).reply(200, { data: { signingRequest } });
       const signMessageRequest = client.signMessage(accountAddress, { message: 'message', nonce: 'nonce' });
 
-      await expect(signMessageRequest).rejects.toThrow(new SignRequestError(SigningRequestStatus.INVALID));
+      await expect(signMessageRequest).rejects.toThrow(new SignatureRequestError(SigningRequestStatus.INVALID));
     });
     it('returns decrypted response when successful ', async () => {
       const { accountAddress, accountKeys, dappKeys, pairingId } = setupMockPairing();
@@ -225,11 +227,11 @@ describe(ICDappClient, () => {
       const { accountAddress, dappKeys, pairingId, transportKeys } = setupMockPairing();
       const client = new ICDappClient(mockDappId, dappClientConfig);
 
-      const signMessagePayload: SignMessageRequestBody = {
+      const signMessageRequestArgs: SignMessageRequestArgs = {
         message: 'mock-message',
         nonce: 'mock-nonce',
       };
-      const mockSignMessageResponse: SignMessageResponseBody = {
+      const mockSignMessageResponseArgs: SignMessageResponseArgs = {
         address: '0xb0b',
         application: 'mock-application',
         chainId: 1,
@@ -245,16 +247,16 @@ describe(ICDappClient, () => {
         responseEnvelope: await makeResponseEnvelope(
           transportKeys.secretKey,
           dappKeys.publicKey,
-          mockSignMessageResponse,
+          mockSignMessageResponseArgs,
         ),
         status: 'APPROVED',
       };
 
       mockAxios.onPost(`v1/pairing/${pairingId}/signing-request`).reply(200, { data: { signingRequest } });
-      const signMessageResponse = await client.signMessage(accountAddress, signMessagePayload);
+      const signMessageResponse = await client.signMessage(accountAddress, signMessageRequestArgs);
 
       expect(signMessageResponse).toBeDefined();
-      expect(signMessageResponse).toEqual(mockSignMessageResponse);
+      expect(signMessageResponse).toEqual(mockSignMessageResponseArgs);
     });
   });
 });

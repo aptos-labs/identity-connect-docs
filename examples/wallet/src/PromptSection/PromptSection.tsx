@@ -2,18 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { SigningRequestTypes } from '@identity-connect/api';
-import { SignRequest } from '@identity-connect/wallet-sdk';
+import { SignatureRequest } from '@identity-connect/wallet-sdk';
 import { useState } from 'react';
-import './index.css';
 import useAsyncAction from '../utils/useAsyncAction.ts';
 import { useWalletClient } from '../WalletClientContext.ts';
+import './index.css';
+import SignAndSubmitTransactionRequestListItem from './SignAndSubmitTransactionRequestListItem.tsx';
 import SignMessageRequestListItem from './SignMessageRequestListItem.tsx';
 import SignTransactionRequestListItem from './SignTransactionRequestListItem.tsx';
 
 export default function PromptSection() {
   const walletClient = useWalletClient();
 
-  const [signingRequests, setSigningRequests] = useState<SignRequest[]>();
+  const [signingRequests, setSigningRequests] = useState<SignatureRequest[]>();
   const fetchSigningRequests = useAsyncAction(async () => {
     const newSigningRequests = await walletClient.getAllSigningRequests();
     setSigningRequests(newSigningRequests);
@@ -34,9 +35,17 @@ export default function PromptSection() {
                     onRespond={fetchSigningRequests.trigger}
                   />
                 );
-              case SigningRequestTypes.SIGN_AND_SUBMIT_TRANSACTION:
+              case SigningRequestTypes.SIGN_TRANSACTION:
                 return (
                   <SignTransactionRequestListItem
+                    key={request.id}
+                    request={request}
+                    onRespond={fetchSigningRequests.trigger}
+                  />
+                );
+              case SigningRequestTypes.SIGN_AND_SUBMIT_TRANSACTION:
+                return (
+                  <SignAndSubmitTransactionRequestListItem
                     key={request.id}
                     request={request}
                     onRespond={fetchSigningRequests.trigger}
