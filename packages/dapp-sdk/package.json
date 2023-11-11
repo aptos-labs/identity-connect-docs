@@ -23,7 +23,7 @@
     "@identity-connect/crypto": "^0.1.3",
     "@identity-connect/wallet-api": "^0.0.3",
     "aptos": "^1.20.0",
-    "axios": "^1.4.0"
+    "axios": "^1.6.0"
   },
   "devDependencies": {
     "@identity-connect/eslint-config": "*",
